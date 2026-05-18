@@ -1,0 +1,165 @@
+-- Build + run + auto-attach workflow for .NET projects (Blazor Server, console, ASP.NET).
+-- Uses a visible toggleterm split so Console.ReadKey / ReadLine work normally.
+-- The runtime is started with DOTNET_EnableDiagnostics=1 so netcoredbg can attach
+-- by PID once the process is up.
+local M = {}
+
+local debug_terminal = nil
+
+local function find_csproj()
+  local cwd = vim.fn.getcwd()
+  local files = vim.fn.glob(cwd .. "/*.csproj", false, true)
+  if #files > 0 then return files[1], cwd end
+
+  files = vim.fn.glob(cwd .. "/*/*.csproj", false, true)
+  if #files > 0 then
+    return files[1], vim.fn.fnamemodify(files[1], ":h")
+  end
+  return nil, nil
+end
+
+local function project_name_of(csproj_path)
+  return vim.fn.fnamemodify(csproj_path, ":t:r")
+end
+
+local function find_pid(project_name)
+  local result = vim.system({ "pgrep", "-f", project_name }, { text = true }):wait()
+  if result.code == 0 and result.stdout then
+    local first = result.stdout:match("(%d+)")
+    return tonumber(first)
+  end
+  return nil
+end
+
+local function wait_for_pid(project_name, timeout_ms, callback)
+  local attempts = 0
+  local max_attempts = timeout_ms / 100
+  local timer = vim.uv.new_timer()
+  timer:start(100, 100, vim.schedule_wrap(function()
+    attempts = attempts + 1
+    local pid = find_pid(project_name)
+    if pid then
+      timer:stop(); timer:close()
+      callback(pid)
+    elseif attempts >= max_attempts then
+      timer:stop(); timer:close()
+      callback(nil)
+    end
+  end))
+end
+
+local function attach(pid)
+  if not pid then
+    vim.notify("Could not find process to attach to", vim.log.levels.ERROR)
+    return
+  end
+  vim.notify("Attaching debugger to PID " .. pid, vim.log.levels.INFO)
+  require("dap").run({
+    type = "coreclr",
+    name = "Attach to Process",
+    request = "attach",
+    processId = pid,
+  })
+end
+
+---Build, run with diagnostic port, wait for the process, attach netcoredbg.
+function M.debug_with_terminal()
+  local csproj, project_dir = find_csproj()
+  if not csproj then
+    vim.notify("No .csproj found", vim.log.levels.ERROR)
+    return
+  end
+  local name = project_name_of(csproj)
+  vim.notify("Building and running " .. name)
+
+  local Terminal = require("toggleterm.terminal").Terminal
+  if debug_terminal then debug_terminal:shutdown() end
+
+  local cmd = "cd " .. vim.fn.shellescape(project_dir)
+    .. " && dotnet build"
+    .. " && DOTNET_EnableDiagnostics=1 DOTNET_EnableDiagnostics_Debugger=1"
+    .. " dotnet run --no-build"
+
+  debug_terminal = Terminal:new({
+    cmd = cmd,
+    dir = project_dir,
+    direction = "horizontal",
+    size = 15,
+    close_on_exit = false,
+    on_open = function() vim.cmd("startinsert!") end,
+    on_exit = function(_, _, code)
+      vim.schedule(function()
+        vim.notify("Process exited with code " .. code)
+      end)
+    end,
+  })
+  debug_terminal:open()
+
+  wait_for_pid(name, 15000, function(pid)
+    if pid then
+      vim.defer_fn(function()
+        vim.cmd("wincmd k") -- jump back to code window before attaching
+        attach(pid)
+      end, 500)
+    else
+      vim.notify("Timed out waiting for process. Use <leader>da to attach manually.", vim.log.levels.WARN)
+    end
+  end)
+end
+
+---Just build + run in the terminal. No auto-attach (use <leader>da later if you want).
+function M.run_in_terminal()
+  local csproj, project_dir = find_csproj()
+  if not csproj then
+    vim.notify("No .csproj found", vim.log.levels.ERROR)
+    return
+  end
+  local name = project_name_of(csproj)
+  vim.notify("Running " .. name .. " (attach with <leader>da)")
+
+  local Terminal = require("toggleterm.terminal").Terminal
+  if debug_terminal then debug_terminal:shutdown() end
+
+  debug_terminal = Terminal:new({
+    cmd = "cd " .. vim.fn.shellescape(project_dir) .. " && dotnet build && dotnet run --no-build",
+    dir = project_dir,
+    direction = "horizontal",
+    size = 15,
+    close_on_exit = false,
+    on_open = function() vim.cmd("startinsert!") end,
+  })
+  debug_terminal:open()
+end
+
+---Try to find the dotnet process for the current project; fall back to pick_process.
+function M.attach_to_dotnet()
+  local csproj = find_csproj()
+  if csproj then
+    local pid = find_pid(project_name_of(csproj))
+    if pid then return attach(pid) end
+  end
+  require("dap").run({
+    type = "coreclr",
+    name = "Attach",
+    request = "attach",
+    processId = require("dap.utils").pick_process,
+  })
+end
+
+function M.toggle_terminal()
+  if debug_terminal then
+    debug_terminal:toggle()
+  else
+    vim.notify("No debug terminal active. Start with <leader>dd first.", vim.log.levels.WARN)
+  end
+end
+
+function M.stop_terminal()
+  if debug_terminal then
+    debug_terminal:shutdown()
+    debug_terminal = nil
+    vim.notify("Debug terminal stopped")
+  end
+end
+
+return M
