@@ -1,6 +1,9 @@
+-- Horizontal split (never auto-closes on focus loss). The "rounded border"
+-- is faked via a winbar with a top corner line — gives the look without the
+-- float-window close-on-wincmd quirk.
 require("toggleterm").setup({
-    size = 15,
     direction = "horizontal",
+    size = 15,
     close_on_exit = true,
     shell = vim.o.shell,
 })
@@ -10,3 +13,4 @@ require("toggleterm").setup({
 for _, key in ipairs({ "<C-/>", "<C-_>" }) do
     vim.keymap.set({ "n", "t" }, key, "<cmd>ToggleTerm<cr>", { desc = "Toggle terminal" })
 end
+

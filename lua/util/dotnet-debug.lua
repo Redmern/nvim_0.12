@@ -7,26 +7,57 @@ local M = {}
 local debug_terminal = nil
 
 local function find_csproj()
-  local cwd = vim.fn.getcwd()
-  local files = vim.fn.glob(cwd .. "/*.csproj", false, true)
-  if #files > 0 then return files[1], cwd end
-
-  files = vim.fn.glob(cwd .. "/*/*.csproj", false, true)
-  if #files > 0 then
-    return files[1], vim.fn.fnamemodify(files[1], ":h")
+  -- 1. Walk up from current buffer's dir looking for a .csproj
+  local buf_path = vim.api.nvim_buf_get_name(0)
+  if buf_path ~= "" then
+    local start = vim.fn.fnamemodify(buf_path, ":p:h")
+    local found = vim.fs.find(function(name) return name:match("%.csproj$") end, {
+      upward = true,
+      path = start,
+      type = "file",
+      limit = 1,
+    })
+    if found and found[1] then
+      return found[1], vim.fn.fnamemodify(found[1], ":h")
+    end
   end
-  return nil, nil
+
+  -- 2. Fallback: glob downward from cwd. Prefer a runnable host project
+  -- (Sdk="Microsoft.NET.Sdk.Web" or OutputType=Exe) over libraries/WASM clients.
+  local cwd = vim.fn.getcwd()
+  local files = vim.fn.glob(cwd .. "/**/*.csproj", false, true)
+  if #files == 0 then return nil, nil end
+
+  local function score(path)
+    local f = io.open(path, "r")
+    if not f then return 0 end
+    local content = f:read("*a") or ""
+    f:close()
+    if content:match('Sdk%s*=%s*"Microsoft%.NET%.Sdk%.Web"') then return 3 end
+    if content:match("<OutputType>%s*Exe%s*</OutputType>") then return 2 end
+    if content:match('Sdk%s*=%s*"Microsoft%.NET%.Sdk%.BlazorWebAssembly"') then return 0 end
+    return 1
+  end
+
+  table.sort(files, function(a, b) return score(a) > score(b) end)
+  return files[1], vim.fn.fnamemodify(files[1], ":h")
 end
 
 local function project_name_of(csproj_path)
   return vim.fn.fnamemodify(csproj_path, ":t:r")
 end
 
+-- Prefer the process actually running the compiled DLL (the real app),
+-- not the `dotnet run` launcher — attaching to the launcher means
+-- breakpoints never resolve because user code never loads in that pid.
 local function find_pid(project_name)
-  local result = vim.system({ "pgrep", "-f", project_name }, { text = true }):wait()
-  if result.code == 0 and result.stdout then
-    local first = result.stdout:match("(%d+)")
-    return tonumber(first)
+  local dll = vim.system({ "pgrep", "-f", project_name .. "%.dll" }, { text = true }):wait()
+  if dll.code == 0 and dll.stdout and dll.stdout ~= "" then
+    return tonumber(dll.stdout:match("(%d+)"))
+  end
+  local any = vim.system({ "pgrep", "-f", project_name }, { text = true }):wait()
+  if any.code == 0 and any.stdout then
+    return tonumber(any.stdout:match("(%d+)"))
   end
   return nil
 end
@@ -62,7 +93,8 @@ local function attach(pid)
   })
 end
 
----Build, run with diagnostic port, wait for the process, attach netcoredbg.
+---Spawn `dotnet run` in a detached tmux window (requires being inside tmux).
+---Falls back to a toggleterm split if not inside tmux. Attach with <leader>da.
 function M.debug_with_terminal()
   local csproj, project_dir = find_csproj()
   if not csproj then
@@ -70,39 +102,75 @@ function M.debug_with_terminal()
     return
   end
   local name = project_name_of(csproj)
-  vim.notify("Building and running " .. name)
 
+  if vim.env.TMUX and vim.env.TMUX ~= "" then
+    vim.notify("Building and running " .. name .. " (tmux window 'dotnet-run')", vim.log.levels.INFO)
+    local r = vim.fn.system({
+      "tmux", "new-window", "-d",
+      "-n", "dotnet-run",
+      "-c", project_dir,
+      "dotnet run; exec bash",
+    })
+    if vim.v.shell_error ~= 0 then
+      vim.notify("tmux new-window failed: " .. r, vim.log.levels.ERROR)
+      return
+    end
+    vim.notify("Attach with <leader>da when the app is up.", vim.log.levels.INFO)
+    return
+  end
+
+  -- Fallback: toggleterm split
+  vim.notify("Not in tmux — running " .. name .. " in a split. Attach with <leader>da.", vim.log.levels.INFO)
   local Terminal = require("toggleterm.terminal").Terminal
   if debug_terminal then debug_terminal:shutdown() end
-
-  local cmd = "cd " .. vim.fn.shellescape(project_dir)
-    .. " && dotnet build"
-    .. " && DOTNET_EnableDiagnostics=1 DOTNET_EnableDiagnostics_Debugger=1"
-    .. " dotnet run --no-build"
-
   debug_terminal = Terminal:new({
-    cmd = cmd,
+    cmd = "cd " .. vim.fn.shellescape(project_dir) .. " && dotnet run",
     dir = project_dir,
     direction = "horizontal",
     size = 15,
     close_on_exit = false,
     on_open = function() vim.cmd("startinsert!") end,
-    on_exit = function(_, _, code)
-      vim.schedule(function()
-        vim.notify("Process exited with code " .. code)
-      end)
-    end,
+  })
+  debug_terminal:open()
+end
+
+---Azure Functions isolated-worker debug. `func start --dotnet-isolated-debug`
+---makes the worker pause until netcoredbg attaches → deterministic BP binding.
+function M.debug_func()
+  local csproj, project_dir = find_csproj()
+  if not csproj then
+    vim.notify("No .csproj found", vim.log.levels.ERROR)
+    return
+  end
+  local name = project_name_of(csproj)
+  vim.notify("func start: " .. name, vim.log.levels.INFO)
+
+  local Terminal = require("toggleterm.terminal").Terminal
+  if debug_terminal then debug_terminal:shutdown() end
+
+  local run_cmd = "cd " .. vim.fn.shellescape(project_dir)
+    .. " && dotnet build"
+    .. " && func start --dotnet-isolated-debug --no-build"
+
+  debug_terminal = Terminal:new({
+    cmd = run_cmd,
+    dir = project_dir,
+    direction = "horizontal",
+    size = 15,
+    close_on_exit = false,
+    on_open = function() vim.cmd("startinsert!") end,
   })
   debug_terminal:open()
 
-  wait_for_pid(name, 15000, function(pid)
+  -- Isolated worker process matches "<Project>.dll"
+  wait_for_pid(name, 30000, function(pid)
     if pid then
       vim.defer_fn(function()
-        vim.cmd("wincmd k") -- jump back to code window before attaching
+        vim.cmd("wincmd k")
         attach(pid)
       end, 500)
     else
-      vim.notify("Timed out waiting for process. Use <leader>da to attach manually.", vim.log.levels.WARN)
+      vim.notify("Timeout waiting for func worker. Attach manually with <leader>da.", vim.log.levels.WARN)
     end
   end)
 end
@@ -155,11 +223,15 @@ function M.toggle_terminal()
 end
 
 function M.stop_terminal()
+  pcall(function() require("dap").terminate() end)
+  pcall(function() require("dap").close() end)
+  pcall(function() require("dapui").close() end)
   if debug_terminal then
     debug_terminal:shutdown()
     debug_terminal = nil
-    vim.notify("Debug terminal stopped")
   end
+  vim.fn.system({ "tmux", "kill-window", "-t", "dotnet-run" })
+  vim.notify("Debug stopped", vim.log.levels.INFO)
 end
 
 return M

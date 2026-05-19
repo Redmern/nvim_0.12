@@ -1,3 +1,7 @@
+-- nvim-notify wants either a NotifyBackground hl or an explicit colour;
+-- without it we get the "no background highlight" warning every notify.
+require("notify").setup({ background_colour = "#000000" })
+
 require("noice").setup({
     presets = {
         bottom_search = false,    -- float "/" search too (set true to keep at bottom)

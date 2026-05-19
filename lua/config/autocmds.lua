@@ -34,9 +34,25 @@ end
 sync_os_theme()
 vim.api.nvim_create_autocmd("FocusGained", { callback = sync_os_theme })
 
--- Omarchy's ~/.config/omarchy/hooks/theme-set sends :ThemeReload over RPC to
--- every running nvim instance, so theme changes apply live (no focus needed).
-vim.api.nvim_create_user_command("ThemeReload", sync_os_theme, { desc = "Re-read Omarchy theme and re-apply" })
+vim.api.nvim_create_user_command("ThemeReload", sync_os_theme,
+  { desc = "Re-read Omarchy theme and re-apply" })
+
+-- Live watcher: re-applies the theme as soon as Omarchy writes theme.name.
+-- Omarchy's stock `theme-set` hook only pokes zsh/tmux (no RPC to nvim), so
+-- we self-watch the file via libuv. Re-arm after each event because the
+-- file may be replaced via rename, breaking the original fs_event handle.
+local theme_file = os.getenv("HOME") .. "/.config/omarchy/current/theme.name"
+local fs_handle
+local function watch_theme_file()
+  if fs_handle then pcall(function() fs_handle:close() end) end
+  fs_handle = vim.uv.new_fs_event()
+  fs_handle:start(theme_file, {}, vim.schedule_wrap(function(err)
+    if err then return end
+    sync_os_theme()
+    vim.defer_fn(watch_theme_file, 100) -- re-arm
+  end))
+end
+watch_theme_file()
 
 -- ---------------------------------------------------------------------------
 -- Line-number coloring (muted for inactive lines, bold accent for current)
@@ -49,6 +65,31 @@ end
 
 style_line_numbers()
 vim.api.nvim_create_autocmd("ColorScheme", { callback = style_line_numbers })
+
+-- ---------------------------------------------------------------------------
+-- Transparent background: clear the bg of every "this is the editor surface"
+-- highlight group. Floats keep their own bg (NormalFloat) so popups still pop.
+-- Re-applied on ColorScheme so Omarchy theme switches don't repaint.
+-- ---------------------------------------------------------------------------
+local TRANSPARENT_GROUPS = {
+  "Normal", "NormalNC",
+  "SignColumn", "EndOfBuffer", "MsgArea", "VertSplit", "WinSeparator",
+  "StatusLine", "StatusLineNC",
+  "LineNr", "CursorLineNr",
+  "FoldColumn",
+  "TelescopeNormal", "TelescopeBorder",
+  "NeoTreeNormal", "NeoTreeNormalNC", "NeoTreeEndOfBuffer",
+}
+
+local function make_transparent()
+  for _, g in ipairs(TRANSPARENT_GROUPS) do
+    pcall(vim.api.nvim_set_hl, 0, g, vim.tbl_extend("force",
+      vim.api.nvim_get_hl(0, { name = g }) or {}, { bg = "NONE", ctermbg = "NONE" }))
+  end
+end
+
+make_transparent()
+vim.api.nvim_create_autocmd("ColorScheme", { callback = make_transparent })
 
 -- ---------------------------------------------------------------------------
 -- Briefly highlight yanked text so you can see what was copied

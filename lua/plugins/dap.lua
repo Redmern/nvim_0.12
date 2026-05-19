@@ -14,24 +14,54 @@ vim.fn.sign_define("DapBreakpointRejected",  { text = "○", texthl = "Diagnosti
 -- ---------------------------------------------------------------------------
 require("mason-tool-installer").setup({
   ensure_installed = {
-    "roslyn",            -- C# language server (used by lua/plugins/roslyn.lua)
-    "netcoredbg",        -- .NET / Blazor Server debugger
-    "js-debug-adapter",  -- Browser-side debugger for Blazor WASM via Chrome
-    "csharpier",         -- already used by conform.nvim
-    "stylua",            -- already used by conform.nvim
+    -- Roslyn pinned: random upstream version bumps have a history of
+    -- changing diagnostic output (IDE0005 surfacing, missing code-fixes,
+    -- razor arg crashes). Bump deliberately, not on every `:MasonUpdate`.
+    { "roslyn", version = "5.8.0-1.26262.10" },
+    "netcoredbg",
+    "js-debug-adapter",
+    "csharpier",
+    "stylua",
   },
   run_on_start = true,
   auto_update = false,
 })
 
 -- ---------------------------------------------------------------------------
--- C# adapter + base launch config via dap-cs (auto-finds the DLL from the csproj)
+-- C# adapter (netcoredbg) defined directly. dap-cs is deliberately NOT used —
+-- it overwrites dap.configurations.cs and conflicts with our attach flow
+-- (matches old ~/.config/nvim setup that works).
 -- ---------------------------------------------------------------------------
-require("dap-cs").setup({
-  netcoredbg = {
-    path = vim.fn.exepath("netcoredbg"),
+local netcoredbg = {
+  type = "executable",
+  command = vim.fn.exepath("netcoredbg"),
+  args = { "--interpreter=vscode" },
+}
+dap.adapters.coreclr    = netcoredbg
+dap.adapters.netcoredbg = netcoredbg
+vim.opt.switchbuf:append("useopen")
+
+dap.configurations.cs = {
+  {
+    type = "coreclr",
+    name = "Launch (select DLL)",
+    request = "launch",
+    console = "integratedTerminal",
+    program = function()
+      return vim.fn.input("Path to DLL: ", vim.fn.getcwd() .. "/bin/Debug/", "file")
+    end,
+    stopAtEntry = false,
   },
-})
+  {
+    type = "coreclr",
+    name = "Attach",
+    request = "attach",
+    processId = require("dap.utils").pick_process,
+  },
+}
+
+-- Launch terminal opens as a bottom split (15 rows)
+dap.defaults.fallback.terminal_win_cmd = "belowright 15new"
 
 -- ---------------------------------------------------------------------------
 -- pwa-chrome adapter for Blazor WebAssembly (debug C# running in the browser)
@@ -68,6 +98,7 @@ table.insert(dap.configurations.cs, {
 -- dap-ui layout: side panel (right) + bottom REPL/console
 -- ---------------------------------------------------------------------------
 dapui.setup({
+  floating = { border = "rounded" },
   layouts = {
     {
       position = "right",
@@ -90,9 +121,8 @@ dapui.setup({
   },
 })
 
-dap.listeners.after.event_initialized["dapui"] = function() dapui.open() end
-dap.listeners.before.event_terminated["dapui"] = function() dapui.close() end
-dap.listeners.before.event_exited["dapui"]    = function() dapui.close() end
+-- No auto dap-ui open on session start. Use <leader>du to toggle when needed.
+
 
 -- ---------------------------------------------------------------------------
 -- Keymaps
@@ -115,6 +145,13 @@ map("<leader>dO", dap.step_out,          "Step out")
 map("<leader>du", dapui.toggle,          "Toggle DAP UI")
 map("<leader>dr", dap.repl.toggle,       "Toggle REPL")
 map("<leader>dl", dap.run_last,          "Run last")
+
+-- Peek value: K-like hover popup. <leader>de = peek (closes on cursor move),
+-- <leader>dw = peek and stay (enter the float to scroll/inspect children).
+vim.keymap.set({ "n", "v" }, "<leader>de", function() require("dapui").eval() end,
+    { desc = "DAP Eval (peek)" })
+vim.keymap.set({ "n", "v" }, "<leader>dw", function() require("dapui").eval(nil, { enter = true }) end,
+    { desc = "DAP Eval (peek + focus)" })
 
 -- <leader>d* — .NET workflow (matches old config exactly)
 local dotnet = function() return require("util.dotnet-debug") end

@@ -7,8 +7,8 @@
 -- the --razorSourceGenerator / --razorDesignTimePath args that newer
 -- roslyn.nvim passes by default, which crashes the server on startup.
 -- Treesitter still highlights .razor files; you just don't get LSP on them.
-require("roslyn").setup({
-  extensions = {
-    razor = { enabled = false },
-  },
-})
+-- require("roslyn").setup({
+--   extensions = {
+--     razor = { enabled = false },
+--   })
+--   },

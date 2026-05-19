@@ -1,0 +1,10 @@
+# nvim_0.12 — keep the lockfile in git (it pins plugin versions),
+# but ignore local state / Mason artefacts / per-machine overrides.
+
+.luarc.json
+*.local.lua
+.editorconfig.local
+Directory.Build.props.user
+
+# Plugin-manager clones land under XDG_DATA_HOME, never in-tree, so nothing
+# to ignore there. Leave nvim-pack-lock.json TRACKED.
