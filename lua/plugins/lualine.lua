@@ -44,9 +44,9 @@ end
 
 apply()
 
--- Re-pick the lualine theme whenever the background flips
--- (sync_os_theme in config/autocmds.lua flips it on FocusGained).
-vim.api.nvim_create_autocmd("OptionSet", {
-    pattern = "background",
-    callback = apply,
-})
+-- Re-pick the lualine theme whenever the colorscheme changes. sync_os_theme in
+-- config/autocmds.lua applies the colorscheme AFTER plugins load, so without
+-- this hook lualine stays stuck on whatever theme it auto-picked when no
+-- colorscheme was loaded yet — which renders the wrong chip colors.
+vim.api.nvim_create_autocmd("ColorScheme", { callback = apply })
+vim.api.nvim_create_autocmd("OptionSet", { pattern = "background", callback = apply })

@@ -11,6 +11,7 @@ require("which-key").add({
     { "<leader>g", group = "Git",         icon = { icon = "󰊢", color = "orange" } },
     { "<leader>l", group = "LSP",         icon = { icon = "󰒓", color = "yellow" } },
     { "<leader>d", group = "Debug",       icon = { icon = "󰃤", color = "red"    } },
+    { "<leader>G", group = "Godot",       icon = { icon = "󰊕", color = "green"  } },
     { "<leader>b", group = "Buffer",      icon = { icon = "󰓩", color = "cyan"   } },
     { "<leader>c", group = "Claude Code", icon = { icon = "󰭹", color = "purple" } },
     { "<leader>o", group = "opencode",    icon = { icon = "󰈮", color = "green"  }, mode = { "n", "x", "t" } },

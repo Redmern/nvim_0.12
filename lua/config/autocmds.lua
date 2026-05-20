@@ -17,6 +17,7 @@ local omarchy_to_nvim = {
   ["nord"]             = { colorscheme = "nord",             bg = "dark"  },
   ["dracula"]          = { colorscheme = "dracula",          bg = "dark"  },
   ["flexoki-light"]    = { colorscheme = "catppuccin-latte", bg = "light" },
+  ["space-monkey"]     = { colorscheme = "monokai-pro",      bg = "dark"  },
 }
 
 local fallback = { colorscheme = "catppuccin", bg = "dark" }
@@ -68,17 +69,42 @@ vim.api.nvim_create_autocmd("ColorScheme", { callback = style_line_numbers })
 
 -- ---------------------------------------------------------------------------
 -- Transparent background: clear the bg of every "this is the editor surface"
--- highlight group. Floats keep their own bg (NormalFloat) so popups still pop.
--- Re-applied on ColorScheme so Omarchy theme switches don't repaint.
+-- highlight group so the wallpaper bleeds straight through every cell.
+--
+-- Why so aggressive: Ghostty has an open opacity-stacking bug
+-- (ghostty-org/ghostty#8642) where cells with explicit colored bg render
+-- more opaque than default-bg cells under `background-opacity`. To get the
+-- uniform see-through look the in-tmux nvim has (where tmux flattens every
+-- cell to default-bg, sidestepping the bug), we have to strip the bg of as
+-- many colored chrome groups as possible here. Visual / Search / NormalFloat
+-- intentionally stay painted so selections, search hits, and popups remain
+-- readable.
+-- Re-applied on ColorScheme so theme switches don't repaint a bg back.
 -- ---------------------------------------------------------------------------
 local TRANSPARENT_GROUPS = {
+  -- editor surface
   "Normal", "NormalNC",
   "SignColumn", "EndOfBuffer", "MsgArea", "VertSplit", "WinSeparator",
   "StatusLine", "StatusLineNC",
-  "LineNr", "CursorLineNr",
-  "FoldColumn",
+  "LineNr", "CursorLineNr", "CursorLine", "CursorColumn",
+  "FoldColumn", "Folded",
+  -- tabline / winbar (lualine/bufferline groups handled via pattern below)
+  "TabLine", "TabLineFill", "TabLineSel",
+  "WinBar", "WinBarNC",
+  -- sidebars
   "TelescopeNormal", "TelescopeBorder",
   "NeoTreeNormal", "NeoTreeNormalNC", "NeoTreeEndOfBuffer",
+}
+
+-- Highlight groups created dynamically (bufferline etc.) can't be listed
+-- by name. Strip their bg by name-pattern after each ColorScheme.
+-- NOTE: `^lualine_` is intentionally NOT in this list — the user wants the
+-- lualine chips (mode pill, % / line:col / time) to keep their coloured
+-- backgrounds from the monokai-pro auto-theme.
+local TRANSPARENT_PATTERNS = {
+  "^BufferLine",
+  "^TabLine",
+  "^WinBar",
 }
 
 local function make_transparent()
@@ -86,10 +112,23 @@ local function make_transparent()
     pcall(vim.api.nvim_set_hl, 0, g, vim.tbl_extend("force",
       vim.api.nvim_get_hl(0, { name = g }) or {}, { bg = "NONE", ctermbg = "NONE" }))
   end
+  for name, _ in pairs(vim.api.nvim_get_hl(0, {})) do
+    for _, pat in ipairs(TRANSPARENT_PATTERNS) do
+      if name:match(pat) then
+        pcall(vim.api.nvim_set_hl, 0, name, vim.tbl_extend("force",
+          vim.api.nvim_get_hl(0, { name = name }) or {}, { bg = "NONE", ctermbg = "NONE" }))
+        break
+      end
+    end
+  end
 end
 
 make_transparent()
 vim.api.nvim_create_autocmd("ColorScheme", { callback = make_transparent })
+-- lualine/bufferline call vim.api.nvim_set_hl after ColorScheme to install
+-- their own dynamic groups, so re-run on a few extra events that fire after
+-- those finish (BufEnter is the cheapest one that catches lualine refreshes).
+vim.api.nvim_create_autocmd({ "VimEnter", "BufEnter" }, { callback = make_transparent })
 
 -- ---------------------------------------------------------------------------
 -- Briefly highlight yanked text so you can see what was copied

@@ -160,3 +160,14 @@ map("<leader>dR", function() dotnet().run_in_terminal() end,     "Run .NET (no a
 map("<leader>da", function() dotnet().attach_to_dotnet() end,    "Attach to .NET process")
 map("<leader>dT", function() dotnet().toggle_terminal() end,     "Toggle .NET terminal")
 map("<leader>dS", function() dotnet().stop_terminal() end,       "Stop .NET terminal")
+
+-- <leader>G* — Godot workflow (build + run godot-mono, optional debugger attach)
+local godot = function() return require("util.godot-debug") end
+map("<leader>Gr", function() godot().run_game() end,       "Run Godot game (build + launch)")
+map("<leader>Gd", function() godot().debug_game() end,     "Debug Godot (build + run + auto-attach)")
+map("<leader>Ga", function() godot().attach_to_godot() end, "Attach to running Godot")
+map("<leader>Ge", function() godot().open_editor() end,    "Open Godot editor")
+map("<leader>Gb", function() godot().build() end,          "Build (dotnet build)")
+map("<leader>Gi", function() godot().import_assets() end,  "Re-import assets (--headless --import)")
+map("<leader>GT", function() godot().toggle_terminal() end, "Toggle Godot terminal")
+map("<leader>GS", function() godot().stop() end,           "Stop Godot")

@@ -5,6 +5,7 @@ vim.pack.add(require("plugins.specs"))
 
 local modules = {
     "catppuccin",
+    "monokai-pro",
     "devicons",
     "oil",
     "neo-tree",

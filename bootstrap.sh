@@ -37,9 +37,18 @@ echo "==> Detected package manager: $PM"
 # ---------------------------------------------------------------------------
 # 2. System packages
 # ---------------------------------------------------------------------------
-ARCH_PKGS=(neovim git curl gcc rustup nodejs npm ripgrep fd tmux ttf-jetbrains-mono-nerd)
-DEB_PKGS=(neovim git curl build-essential rustup nodejs npm ripgrep fd-find tmux fonts-jetbrains-mono)
-DNF_PKGS=(neovim git curl gcc-c++ rustup nodejs npm ripgrep fd-find tmux jetbrains-mono-fonts)
+ARCH_PKGS=(neovim git curl gcc nodejs npm ripgrep fd tmux ttf-jetbrains-mono-nerd)
+DEB_PKGS=(neovim git curl build-essential nodejs npm ripgrep fd-find tmux fonts-jetbrains-mono)
+DNF_PKGS=(neovim git curl gcc-c++ nodejs npm ripgrep fd-find tmux jetbrains-mono-fonts)
+
+# Add a rust toolchain only if cargo isn't already on PATH. On Arch the
+# `rust` and `rustup` packages conflict (both ship cargo/rustc), so we
+# don't want to force `rustup` onto a system that already has `rust`.
+if ! command -v cargo >/dev/null; then
+    ARCH_PKGS+=(rustup)
+    DEB_PKGS+=(rustup)
+    DNF_PKGS+=(rustup)
+fi
 
 install_pkgs() {
     case "$PM" in
@@ -55,8 +64,13 @@ install_pkgs
 # 3. Rust toolchain (needed for fff.nvim native backend)
 # ---------------------------------------------------------------------------
 if ! rustc --version >/dev/null 2>&1; then
-    echo "==> Initialising rustup default stable toolchain"
-    rustup default stable
+    if command -v rustup >/dev/null; then
+        echo "==> Initialising rustup default stable toolchain"
+        rustup default stable
+    else
+        echo "!! No rustc and no rustup found — install a rust toolchain manually." >&2
+        exit 1
+    fi
 fi
 
 # ---------------------------------------------------------------------------

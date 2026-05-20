@@ -11,6 +11,7 @@ return {
     { src = "https://github.com/sainnhe/everforest" },
     { src = "https://github.com/shaunsingh/nord.nvim" },
     { src = "https://github.com/Mofiqul/dracula.nvim" },
+    { src = "https://github.com/gthelding/monokai-pro.nvim",               name = "monokai-pro" },
 
     -- File explorer (buffer-as-directory) + traditional sidebar tree
     { src = "https://github.com/stevearc/oil.nvim" },
