@@ -98,13 +98,16 @@ local TRANSPARENT_GROUPS = {
 
 -- Highlight groups created dynamically (bufferline etc.) can't be listed
 -- by name. Strip their bg by name-pattern after each ColorScheme.
--- NOTE: `^lualine_` is intentionally NOT in this list — the user wants the
--- lualine chips (mode pill, % / line:col / time) to keep their coloured
--- backgrounds from the monokai-pro auto-theme.
+-- `^lualine_` is stripped everywhere: the statusline is a foreground-only
+-- design (see plugins/lualine.lua) because Ghostty's opacity-stacking bug
+-- (ghostty#7957, unfixed as of 1.3.1) mangles explicit-bg cells outside
+-- tmux. Stripping in both contexts keeps tmux and plain nvim identical.
+-- ^BufferLine is NOT stripped here: plugins/bufferline.lua owns every
+-- BufferLine bg explicitly (transparent bar + filled pill on the active tab).
 local TRANSPARENT_PATTERNS = {
-  "^BufferLine",
   "^TabLine",
   "^WinBar",
+  "^lualine_",
 }
 
 local function make_transparent()
@@ -138,5 +141,23 @@ vim.api.nvim_create_autocmd("TextYankPost", {
   desc = "Highlight on yank",
   callback = function()
     vim.hl.on_yank({ higroup = "YankFlash", timeout = 150 })
+  end,
+})
+
+-- ---------------------------------------------------------------------------
+-- Statusline top padding: 1-row spacer window pinned above the global
+-- statusline (see lua/util/statusline-pad.lua).
+-- ---------------------------------------------------------------------------
+require("util.statusline-pad").setup()
+
+-- ---------------------------------------------------------------------------
+-- Weekly-notes folding: each `## Day` collapses to one fold so only today's
+-- section is open by default. Scoped to ~/Documents/notes/*-W*.md so general
+-- markdown folding (treesitter) stays untouched.
+-- ---------------------------------------------------------------------------
+vim.api.nvim_create_autocmd({ "BufRead", "BufNewFile" }, {
+  pattern = vim.fn.expand("~/Documents/notes") .. "/*-W*.md",
+  callback = function()
+    require("util.weekly-notes").setup_folds()
   end,
 })

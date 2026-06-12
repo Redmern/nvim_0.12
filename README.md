@@ -24,11 +24,26 @@ cd ~/.config/nvim_0.12
 NVIM_APPNAME=nvim_0.12 nvim
 ```
 
-Add this to `~/.zshrc` / `~/.bashrc` if you want a shortcut:
+Add this to `~/.zshrc` if you want a shortcut. Use the **function** form, not
+a plain alias — it always launches nvim inside tmux, which sidesteps a
+Ghostty `background-opacity` bug ([#8642](https://github.com/ghostty-org/ghostty/issues/8642))
+that makes nvim's chrome (statusline, tabline, neo-tree) render as patchy
+opaque blocks. Inside tmux every cell composites uniformly. If you're already
+in a tmux pane the function skips the wrapper.
 
-```sh
-alias v='NVIM_APPNAME=nvim_0.12 nvim'
+```zsh
+v() {
+    if [[ -n $TMUX ]]; then
+        NVIM_APPNAME=nvim_0.12 command nvim "$@"
+    else
+        local cmd="NVIM_APPNAME=nvim_0.12 nvim"
+        for a in "$@"; do cmd+=" ${(q)a}"; done
+        tmux new-session "$cmd"
+    fi
+}
 ```
+
+(bash equivalent: replace `${(q)a}` with `$(printf '%q' "$a")`.)
 
 ## What the bootstrap script does
 

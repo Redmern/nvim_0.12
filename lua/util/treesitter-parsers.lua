@@ -7,5 +7,5 @@ return {
     "vim", "vimdoc", "markdown", "markdown_inline",
     "html", "css", "javascript", "typescript", "tsx",
     "python", "go", "rust", "toml", "xml", "sql",
-    "dockerfile", "regex", "query",
+    "dockerfile", "regex", "query", "bicep",
 }

@@ -64,7 +64,7 @@ require("mason").setup({
 -- mason-lspconfig handles standard LSPs that ship in the main registry.
 -- C# does NOT go here — roslyn.nvim manages the Roslyn server itself.
 require("mason-lspconfig").setup({
-  ensure_installed = { "lua_ls" },
+  ensure_installed = { "lua_ls", "bicep" },
   automatic_installation = true,
 })
 
@@ -77,6 +77,7 @@ if ok_blink then
 end
 
 vim.lsp.enable("roslyn_ls")
+vim.lsp.enable("bicep")
 
 vim.lsp.config("roslyn_ls", {
   filetypes = { "cs", "razor" },
