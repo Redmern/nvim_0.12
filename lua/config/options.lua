@@ -31,6 +31,12 @@ opt.numberwidth                  = 6 -- wider line-number column (default 4)
 opt.cursorline                   = true -- enable cursorline so CursorLineNr highlight kicks in
 opt.cursorlineopt                = "number" -- ...but only highlight the line number, not the whole line
 
+-- Cursor shape per mode + a slow blink for every mode (a:), colored via the
+-- Cursor/lCursor highlight groups (set in config/autocmds.lua to the Ghostty
+-- trailing-cursor accent — palette 4 of the current Omarchy theme).
+opt.guicursor                    = "n-v-c-sm:block,i-ci-ve:ver25,r-cr-o:hor20,"
+  .. "a:blinkwait700-blinkon700-blinkoff700-Cursor/lCursor"
+
 -- vim-tmux-navigator: suppress its built-in <C-h/j/k/l> mappings (incl. the
 -- terminal-mode ones that leak "TmuxNavigateLeft" into Claude/opencode).
 -- Must be set BEFORE the plugin's plugin/ script runs — options.lua loads

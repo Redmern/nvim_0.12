@@ -1,21 +1,25 @@
--- Powerline cap glyphs as byte escapes (U+E0B5/E0B7). Kept as escapes on
--- purpose: literal private-use-area chars get mangled by some tooling.
-local THIN_L, THIN_R = "\238\130\183", "\238\130\181" -- outline caps
+-- Filled "bubbles" statusline: each end is a rounded pill (solid bg + round
+-- cap glyphs U+E0B6 / U+E0B4), the middle is a solid bar.
+--
+-- This used to branch on $TMUX because Ghostty's opacity-stacking bug
+-- (#7957/#8642) made explicit-bg cells render wrong outside tmux under
+-- background-opacity < 1. The terminal now runs at background-opacity = 1.0
+-- (see ~/.config/ghostty/config), which sidesteps the bug, so pills render
+-- identically in and out of tmux -- no branch needed.
+--
+-- Toggling nvim transparency on (<leader>ut) still re-strips ^lualine_ bgs via
+-- config/autocmds.lua make_transparent, flattening these to a fg-only bar.
+-- Caps kept as byte escapes: literal PUA chars get mangled by tooling.
+local CAP_L, CAP_R = "\238\130\182", "\238\130\180" -- U+E0B6 (left) / U+E0B4 (right) filled round caps
 
--- Foreground-only "modern" statusline: colored bold mode text + glyph accents,
--- zero explicit backgrounds. Ghostty's opacity bug (ghostty#7957) mangles
--- explicit-bg cells outside tmux, so a bg-free theme is the only design that
--- renders identically inside and outside tmux. Don't reintroduce section
--- backgrounds / pills while that bug is unfixed.
-
--- Per-mode accent colors. Pulled from the catppuccin palette when it's the
--- active colorscheme family, with hardcoded mocha values as fallback so other
--- themes still get a sane look.
+-- Per-mode accent + surface colors. Pulled from the catppuccin palette when
+-- it's available, with hardcoded mocha values as fallback so other themes still
+-- get a sane look.
 local function palette()
     local fallback = {
         blue = "#89b4fa", green = "#a6e3a1", mauve = "#cba6f7", red = "#f38ba8",
         peach = "#fab387", yellow = "#f9e2af", text = "#cdd6f4", overlay1 = "#7f849c",
-        crust = "#11111b",
+        crust = "#11111b", mantle = "#181825", surface0 = "#313244", surface1 = "#45475a",
     }
     local ok, pal = pcall(function()
         return require("catppuccin.palettes").get_palette()
@@ -27,13 +31,14 @@ local function palette()
     return pal
 end
 
-local function fg_theme()
+local function pill_theme()
     local p = palette()
+    -- a = filled accent pill (mode), b = raised surface, c = solid bar body
     local function mode(accent)
         return {
-            a = { fg = accent, bg = "NONE", gui = "bold" },
-            b = { fg = p.overlay1, bg = "NONE" },
-            c = { fg = p.text, bg = "NONE" },
+            a = { fg = p.crust, bg = accent, gui = "bold" },
+            b = { fg = p.text, bg = p.surface0 },
+            c = { fg = p.text, bg = p.mantle },
         }
     end
     return {
@@ -44,9 +49,9 @@ local function fg_theme()
         command  = mode(p.peach),
         terminal = mode(p.green),
         inactive = {
-            a = { fg = p.overlay1, bg = "NONE" },
-            b = { fg = p.overlay1, bg = "NONE" },
-            c = { fg = p.overlay1, bg = "NONE" },
+            a = { fg = p.overlay1, bg = p.mantle },
+            b = { fg = p.overlay1, bg = p.mantle },
+            c = { fg = p.overlay1, bg = p.mantle },
         },
     }
 end
@@ -54,17 +59,15 @@ end
 local function apply()
     require("lualine").setup({
         options = {
-            theme = fg_theme(),
+            theme = pill_theme(),
             globalstatus = true,
-            -- bg-free design: glyph separators read as accents, not pill edges
-            section_separators = "",
-            component_separators = { left = "│", right = "│" },
+            component_separators = "",
+            section_separators = { left = CAP_R, right = CAP_L },
             disabled_filetypes = { statusline = { "dashboard", "alpha" } },
         },
         sections = {
-            -- "outlined pill": thin rounded cap glyphs ( U+E0B7 /  U+E0B5)
-            -- drawn as plain fg text — pill silhouette with zero bg cells.
-            lualine_a = { { "mode", fmt = function(s) return THIN_L .. " " .. s .. " " .. THIN_R end, padding = 0 } },
+            -- left pill: rounded cap on the outside edge of the mode block
+            lualine_a = { { "mode", separator = { left = CAP_L }, padding = { left = 1, right = 1 } } },
             lualine_b = { { "branch", icon = "" } },
             lualine_c = {
                 {
@@ -80,12 +83,9 @@ local function apply()
                     symbols = { added = " ", modified = " ", removed = " " },
                 },
             },
-            lualine_y = {
-                { "progress", separator = " ", padding = { left = 1, right = 0 } },
-                { "location", padding = { left = 0, right = 1 } },
-            },
-            -- no time here: the tmux status bar already shows it
-            lualine_z = {},
+            lualine_y = { { "progress" } },
+            -- right pill: rounded cap on the outside edge of the location block
+            lualine_z = { { "location", separator = { right = CAP_R }, padding = { left = 1, right = 1 } } },
         },
         extensions = { "neo-tree", "lazy", "toggleterm", "oil" },
     })
@@ -98,3 +98,11 @@ apply()
 -- stays stuck on the palette it computed before any colorscheme existed.
 vim.api.nvim_create_autocmd("ColorScheme", { callback = apply })
 vim.api.nvim_create_autocmd("OptionSet", { pattern = "background", callback = apply })
+
+-- Startup heal: lualine.setup() above runs before config/autocmds.lua applies
+-- the Omarchy colorscheme, and the startup colorscheme churn (plus lualine's
+-- own internal ColorScheme refresh) can leave the pill highlights — lualine_a
+-- bg etc. — empty on a fresh launch, with no further ColorScheme event to fix
+-- them. A post-startup re-apply, deferred until the event loop is idle, makes a
+-- cold-started nvim render the filled pills without needing a manual toggle.
+vim.api.nvim_create_autocmd("VimEnter", { callback = function() vim.schedule(apply) end })

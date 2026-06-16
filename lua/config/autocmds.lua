@@ -22,12 +22,22 @@ local omarchy_to_nvim = {
 
 local fallback = { colorscheme = "catppuccin", bg = "dark" }
 
+local applied_theme -- last Omarchy theme name we actually applied
 local function sync_os_theme()
   local handle = io.open(os.getenv("HOME") .. "/.config/omarchy/current/theme.name", "r")
   local name = handle and handle:read("*l") or ""
   if handle then handle:close() end
 
   local choice = omarchy_to_nvim[name] or fallback
+
+  -- Skip redundant re-applies. This runs on every FocusGained; re-running
+  -- :colorscheme does `hi clear` + rebuild, which races with lualine's own
+  -- ColorScheme refresh and intermittently blanks the statusline pill
+  -- backgrounds. Only re-apply when the theme actually changed.
+  if name == applied_theme and vim.g.colors_name == choice.colorscheme then
+    return
+  end
+  applied_theme = name
   vim.opt.background = choice.bg
   pcall(vim.cmd.colorscheme, choice.colorscheme) -- guarded: missing plugin shouldn't crash startup
 end
@@ -66,6 +76,32 @@ end
 
 style_line_numbers()
 vim.api.nvim_create_autocmd("ColorScheme", { callback = style_line_numbers })
+
+-- ---------------------------------------------------------------------------
+-- Cursor color synced to the Ghostty trailing-cursor animation.
+-- That trail is baked from `palette = 4` (the accent) of the active theme's
+-- ghostty.conf (see ~/.config/omarchy/hooks/generate-cursor-trail). We read
+-- the same value so the nvim cursor matches it, and re-apply on ColorScheme
+-- so an Omarchy theme switch keeps them in sync. Blink is set via guicursor
+-- in config/options.lua.
+-- ---------------------------------------------------------------------------
+local function style_cursor()
+  local accent
+  local f = io.open(os.getenv("HOME") .. "/.config/omarchy/current/theme/ghostty.conf", "r")
+  if f then
+    for line in f:lines() do
+      local hex = line:match("^palette%s*=%s*4=#?(%x%x%x%x%x%x)")
+      if hex then accent = "#" .. hex break end
+    end
+    f:close()
+  end
+  accent = accent or "#7e9cd8" -- fallback to kanagawa accent
+  vim.api.nvim_set_hl(0, "Cursor",  { fg = "#1e1e2e", bg = accent })
+  vim.api.nvim_set_hl(0, "lCursor", { fg = "#1e1e2e", bg = accent })
+end
+
+style_cursor()
+vim.api.nvim_create_autocmd("ColorScheme", { callback = style_cursor })
 
 -- ---------------------------------------------------------------------------
 -- Transparent background: clear the bg of every "this is the editor surface"
@@ -110,7 +146,13 @@ local TRANSPARENT_PATTERNS = {
   "^lualine_",
 }
 
+-- Toggleable at runtime (<leader>ut). When off, make_transparent() no-ops so
+-- the colorscheme's own backgrounds survive; turning it back on re-strips them.
+-- Default OFF: opaque backgrounds + filled lualine pills (plugins/lualine.lua).
+vim.g.transparent_enabled = false
+
 local function make_transparent()
+  if not vim.g.transparent_enabled then return end
   for _, g in ipairs(TRANSPARENT_GROUPS) do
     pcall(vim.api.nvim_set_hl, 0, g, vim.tbl_extend("force",
       vim.api.nvim_get_hl(0, { name = g }) or {}, { bg = "NONE", ctermbg = "NONE" }))
@@ -133,6 +175,21 @@ vim.api.nvim_create_autocmd("ColorScheme", { callback = make_transparent })
 -- those finish (BufEnter is the cheapest one that catches lualine refreshes).
 vim.api.nvim_create_autocmd({ "VimEnter", "BufEnter" }, { callback = make_transparent })
 
+-- Toggle transparency on/off. Off => reload the colorscheme to repaint its
+-- backgrounds (the ColorScheme autocmd re-runs make_transparent, which no-ops
+-- while disabled). On => strip chrome backgrounds again immediately.
+local function toggle_transparency()
+  vim.g.transparent_enabled = not vim.g.transparent_enabled
+  if vim.g.transparent_enabled then
+    make_transparent()
+  elseif vim.g.colors_name then
+    vim.cmd.colorscheme(vim.g.colors_name) -- repaint opaque backgrounds
+  end
+  vim.notify("Transparency " .. (vim.g.transparent_enabled and "ON" or "OFF"))
+end
+
+vim.keymap.set("n", "<leader>ut", toggle_transparency, { desc = "Toggle transparent background" })
+
 -- ---------------------------------------------------------------------------
 -- Briefly highlight yanked text so you can see what was copied
 -- ---------------------------------------------------------------------------
@@ -146,9 +203,10 @@ vim.api.nvim_create_autocmd("TextYankPost", {
 
 -- ---------------------------------------------------------------------------
 -- Statusline top padding: 1-row spacer window pinned above the global
--- statusline (see lua/util/statusline-pad.lua).
+-- statusline (see lua/util/statusline-pad.lua). Disabled by preference — the
+-- blank row above the bar wasn't wanted. Re-enable by uncommenting.
 -- ---------------------------------------------------------------------------
-require("util.statusline-pad").setup()
+-- require("util.statusline-pad").setup()
 
 -- ---------------------------------------------------------------------------
 -- Weekly-notes folding: each `## Day` collapses to one fold so only today's
