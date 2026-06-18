@@ -51,10 +51,17 @@ end
 -- <leader>c* — Claude Code (icons attached via which-key.add below)
 vim.keymap.set({ "n", "t" }, "<leader>cc", claude_toggle, { desc = "Toggle Claude Code" })
 vim.keymap.set("n", "<leader>cf", "<cmd>ClaudeCodeFocus<cr>", { desc = "Focus Claude Code" })
-vim.keymap.set("v", "<leader>s", "<cmd>ClaudeCodeSend<cr>", { desc = "Send selection to Claude" })
+-- Send the visual selection to Claude. Uses the `:`-range form (not <cmd>…):
+-- pressing `:` from visual mode inserts `'<,'>` and leaves visual mode, so the
+-- command runs in normal mode with an explicit range and hits ClaudeCodeSend's
+-- clean normal path — no visual-exit feedkeys dance, no terminal focus-steal.
+-- Lives on <leader>cs (the Claude group) instead of <leader>s, which collides
+-- with grug-far's "Search/Replace" group (<leader>sR) and got shadowed by the
+-- which-key menu (the "press it twice / screen blanks / hit esc" symptom).
+vim.keymap.set("v", "<leader>cs", ":ClaudeCodeSend<cr>", { silent = true, desc = "Send selection to Claude" })
 vim.keymap.set("n", "<leader>ca", "<cmd>ClaudeCodeAdd %<cr>", { desc = "Add current file to context" })
 
--- Pin every narrow terminal split (claudecode/opencode side panels).
+-- Pin every narrow terminal split (claudecode/omp side panels).
 -- Fired on multiple events because claudecode opens via snacks.terminal which
 -- doesn't always trigger TermOpen at a useful time.
 local function pin_narrow_term(win)
@@ -74,5 +81,5 @@ require("which-key").add({
   { "<leader>cc", icon = { icon = "󰭹", color = "purple" }, mode = { "n", "t" } },
   { "<leader>cf", icon = { icon = "󰈶", color = "purple" } },
   { "<leader>ca", icon = { icon = "󰐕", color = "green" } },
-  { "<leader>s", icon = { icon = "󰒡", color = "blue" }, mode = "v" },
+  { "<leader>cs", icon = { icon = "󰒡", color = "blue" }, mode = "v" },
 })
