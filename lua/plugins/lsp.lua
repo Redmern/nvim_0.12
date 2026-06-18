@@ -82,7 +82,7 @@ vim.lsp.enable("roslyn_ls")
 vim.lsp.enable("bicep")
 
 vim.lsp.config("roslyn_ls", {
-  filetypes = { "cs", "razor" },
+  filetypes = { "cs" },   -- Razor LSP stays off: current roslyn binary crashes on razor args (treesitter still highlights .razor)
   settings = {
     -- Decompile NuGet sources on go-to-def (instead of "no source available")
     ["csharp|inlay_hints"] = {
