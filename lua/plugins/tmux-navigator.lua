@@ -20,10 +20,11 @@ vim.keymap.set("t", "<C-l>", [[<C-\><C-n>:TmuxNavigateRight<CR>]], { desc = "Win
 -- Terminal-mode nav: the global <C-h/j/k/l> t-maps above navigate out of ANY
 -- terminal. AI/chat terminals (claudecode, omp) must instead keep raw
 -- Ctrl+h/j/k/l so the inner app receives them — so for those buffers we shadow
--- the global maps buffer-locally with a literal passthrough. Plain toggleterm
--- shells keep the global nav maps. To leave an AI buffer: <C-\><C-n> then Ctrl+h.
-vim.api.nvim_create_autocmd("FileType", {
-    pattern = "toggleterm",
+-- the global maps buffer-locally with a literal passthrough. Plain shells keep
+-- the global nav maps. To leave an AI buffer: <C-\><C-n> then Ctrl+h.
+-- NB: TermOpen (not FileType=toggleterm) — claudecode's terminal has no
+-- toggleterm filetype, so a FileType autocmd never fired for it.
+vim.api.nvim_create_autocmd("TermOpen", {
     callback = function(ev)
         vim.defer_fn(function()
             if not vim.api.nvim_buf_is_valid(ev.buf) then return end
