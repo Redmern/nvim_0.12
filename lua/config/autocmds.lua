@@ -202,13 +202,6 @@ vim.api.nvim_create_autocmd("TextYankPost", {
 })
 
 -- ---------------------------------------------------------------------------
--- Statusline top padding: 1-row spacer window pinned above the global
--- statusline (see lua/util/statusline-pad.lua). Disabled by preference — the
--- blank row above the bar wasn't wanted. Re-enable by uncommenting.
--- ---------------------------------------------------------------------------
--- require("util.statusline-pad").setup()
-
--- ---------------------------------------------------------------------------
 -- Weekly-notes folding: each `## Day` collapses to one fold so only today's
 -- section is open by default. Scoped to ~/Documents/notes/*-W*.md so general
 -- markdown folding (treesitter) stays untouched.

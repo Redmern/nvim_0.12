@@ -53,7 +53,8 @@ wrap_handler("textDocument/publishDiagnostics")
 wrap_handler("textDocument/diagnostic")
 
 -- Mason — register the crashdummyy registry, which hosts the `roslyn` package
--- (the modern C# language server, configured via roslyn.nvim — see plugins/roslyn.lua).
+-- (the modern C# language server). roslyn.nvim is NOT used; the server is
+-- started directly below (~L79-107). plugins/roslyn.lua is a commented stub.
 require("mason").setup({
   registries = {
     "github:mason-org/mason-registry",
@@ -62,7 +63,8 @@ require("mason").setup({
 })
 
 -- mason-lspconfig handles standard LSPs that ship in the main registry.
--- C# does NOT go here — roslyn.nvim manages the Roslyn server itself.
+-- C# does NOT go here — the Roslyn server is enabled/configured directly
+-- below via vim.lsp.enable/vim.lsp.config (no roslyn.nvim).
 require("mason-lspconfig").setup({
   ensure_installed = { "lua_ls", "bicep" },
   automatic_installation = true,

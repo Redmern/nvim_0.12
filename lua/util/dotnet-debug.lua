@@ -1,7 +1,7 @@
 -- Build + run + auto-attach workflow for .NET projects (Blazor Server, console, ASP.NET).
 -- Uses a visible toggleterm split so Console.ReadKey / ReadLine work normally.
--- The runtime is started with DOTNET_EnableDiagnostics=1 so netcoredbg can attach
--- by PID once the process is up.
+-- The tmux path just runs `dotnet run` (no DOTNET_EnableDiagnostics set); on
+-- Linux netcoredbg can attach to the running process by PID regardless.
 local M = {}
 
 local debug_terminal = nil
@@ -51,7 +51,7 @@ end
 -- not the `dotnet run` launcher — attaching to the launcher means
 -- breakpoints never resolve because user code never loads in that pid.
 local function find_pid(project_name)
-  local dll = vim.system({ "pgrep", "-f", project_name .. "%.dll" }, { text = true }):wait()
+  local dll = vim.system({ "pgrep", "-f", project_name .. "[.]dll" }, { text = true }):wait()
   if dll.code == 0 and dll.stdout and dll.stdout ~= "" then
     return tonumber(dll.stdout:match("(%d+)"))
   end

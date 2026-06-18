@@ -34,7 +34,9 @@ require("mason-tool-installer").setup({
 -- ---------------------------------------------------------------------------
 local netcoredbg = {
   type = "executable",
-  command = vim.fn.exepath("netcoredbg"),
+  -- Resolve at debug time, not require time — mason may install it after this
+  -- file loads, so a value captured here could be an empty string.
+  command = function() return vim.fn.exepath("netcoredbg") end,
   args = { "--interpreter=vscode" },
 }
 dap.adapters.coreclr    = netcoredbg

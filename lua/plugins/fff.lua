@@ -2,8 +2,8 @@
 -- and <leader>ff. First run will build the Rust binary (cargo required).
 require("fff").setup({
   debug = {
-    enabled = true,
-    show_scores = true,
+    enabled = false,
+    show_scores = false,
   },
 })
 
