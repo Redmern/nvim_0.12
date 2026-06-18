@@ -8,3 +8,7 @@ Directory.Build.props.user
 
 # Plugin-manager clones land under XDG_DATA_HOME, never in-tree, so nothing
 # to ignore there. Leave nvim-pack-lock.json TRACKED.
+
+# Editor/tooling backups — git history is the backup now (no more *.bak.<ts>).
+*.bak
+*.bak.*
