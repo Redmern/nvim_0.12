@@ -1,0 +1,4 @@
+# Mirror the luacheck excludes in .luacheckrc — util modules use deliberate
+# column alignment that stylua would collapse. Keep the lint gate honest by
+# not pretending these are checked.
+lua/util/*.lua
