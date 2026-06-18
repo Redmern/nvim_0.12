@@ -38,7 +38,7 @@ opt.guicursor                    = "n-v-c-sm:block,i-ci-ve:ver25,r-cr-o:hor20,"
   .. "a:blinkwait700-blinkon700-blinkoff700-Cursor/lCursor"
 
 -- vim-tmux-navigator: suppress its built-in <C-h/j/k/l> mappings (incl. the
--- terminal-mode ones that leak "TmuxNavigateLeft" into Claude/opencode).
+-- terminal-mode ones that leak "TmuxNavigateLeft" into Claude/omp).
 -- Must be set BEFORE the plugin's plugin/ script runs — options.lua loads
 -- before lua/plugins.
 vim.g.tmux_navigator_no_mappings = 1

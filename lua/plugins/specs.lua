@@ -98,5 +98,5 @@ return {
 
     -- AI side panels
     { src = "https://github.com/coder/claudecode.nvim" },
-    { src = "https://github.com/nickjvandyke/opencode.nvim" },
+    -- omp has no nvim plugin yet → driven via lua/plugins/omp.lua (terminal split)
 }

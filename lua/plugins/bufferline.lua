@@ -33,7 +33,7 @@ local function build_opts()
             offsets = {
                 { filetype = "neo-tree", text = "Neo-tree", highlight = "Directory", text_align = "left" },
             },
-            -- Hide terminal buffers (Claude Code, opencode, :terminal) from the bufferline
+            -- Hide terminal buffers (Claude Code, omp, :terminal) from the bufferline
             custom_filter = function(buf_number)
                 return vim.bo[buf_number].buftype ~= "terminal"
             end,

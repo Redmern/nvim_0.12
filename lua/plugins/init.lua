@@ -39,7 +39,7 @@ local modules = {
     "noice",
     "mini",
     "claudecode",
-    "opencode",
+    "omp",
     "tmux-navigator",
     "toggleterm",
 }
