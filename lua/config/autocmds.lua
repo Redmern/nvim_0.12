@@ -30,11 +30,16 @@ local function sync_os_theme()
 
   local choice = omarchy_to_nvim[name] or fallback
 
-  -- Skip redundant re-applies. This runs on every FocusGained; re-running
-  -- :colorscheme does `hi clear` + rebuild, which races with lualine's own
-  -- ColorScheme refresh and intermittently blanks the statusline pill
-  -- backgrounds. Only re-apply when the theme actually changed.
-  if name == applied_theme and vim.g.colors_name == choice.colorscheme then
+  -- Skip re-applies when the Omarchy theme hasn't changed. This runs on every
+  -- FocusGained; re-running :colorscheme does `hi clear` + rebuild, which wipes
+  -- dynamically-derived highlights (devicons icons, lualine/bufferline pills)
+  -- and blanks the statusline. Gate only on the Omarchy theme name we control.
+  -- Do NOT also compare `vim.g.colors_name == choice.colorscheme`: colorschemes
+  -- rename themselves (catppuccin -> "catppuccin-mocha", "monokai-pro",
+  -- "tokyonight-night"), so that clause never matched and we reloaded on EVERY
+  -- focus. The `and vim.g.colors_name` is a heal-on-unset escape hatch: if the
+  -- startup colorscheme apply failed (colors_name nil), a later focus re-applies.
+  if name == applied_theme and vim.g.colors_name then
     return
   end
   applied_theme = name
@@ -43,7 +48,14 @@ local function sync_os_theme()
 end
 
 sync_os_theme()
-vim.api.nvim_create_autocmd("FocusGained", { callback = sync_os_theme })
+-- nested = true: when FocusGained detects a GENUINE theme change and runs
+-- :colorscheme, the ColorScheme autocmds that repaint dynamically-derived
+-- highlights (devicons icons, lualine/bufferline pills, line numbers, cursor,
+-- transparency) must fire. Autocmds don't fire autocmds unless the triggering
+-- one is nested (:h autocmd-nested); without this `hi clear` wipes those groups
+-- and nothing repaints. The reload only fires ColorScheme + OptionSet, neither
+-- of which re-enters FocusGained, so there is no recursion.
+vim.api.nvim_create_autocmd("FocusGained", { nested = true, callback = sync_os_theme })
 
 vim.api.nvim_create_user_command("ThemeReload", sync_os_theme,
   { desc = "Re-read Omarchy theme and re-apply" })
