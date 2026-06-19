@@ -18,10 +18,14 @@ vim.keymap.set("t", "<C-k>", [[<C-\><C-n>:TmuxNavigateUp<CR>]],    { desc = "Win
 vim.keymap.set("t", "<C-l>", [[<C-\><C-n>:TmuxNavigateRight<CR>]], { desc = "Window/pane right" })
 
 -- Terminal-mode nav: the global <C-h/j/k/l> t-maps above navigate out of ANY
--- terminal. AI/chat terminals (claudecode, omp) must instead keep raw
--- Ctrl+h/j/k/l so the inner app receives them — so for those buffers we shadow
--- the global maps buffer-locally with a literal passthrough. Plain shells keep
--- the global nav maps. To leave an AI buffer: <C-\><C-n> then Ctrl+h.
+-- terminal. In AI/chat terminals (claudecode, omp) we keep <C-j/k/l> raw so the
+-- inner app receives them, but leave <C-h> on the global :TmuxNavigateLeft map
+-- so you can step LEFT out of the AI pane into the editor (and across the tmux
+-- edge — :TmuxNavigateLeft falls through to tmux when nvim doesn't move). The
+-- Claude pane is the right-most split, so left is the only direction with a
+-- neighbour anyway; <C-h> (ASCII BS) is the most expendable inner-app key since
+-- the real Backspace still works. Plain shells keep all four global nav maps.
+-- To leave an AI buffer up/down/right: <C-\><C-n> then Ctrl+j/k/l.
 -- NB: TermOpen (not FileType=toggleterm) — claudecode's terminal has no
 -- toggleterm filetype, so a FileType autocmd never fired for it.
 vim.api.nvim_create_autocmd("TermOpen", {
@@ -33,9 +37,11 @@ vim.api.nvim_create_autocmd("TermOpen", {
             local is_ai = (name .. " " .. cmd):lower():match("claude")
                 or (name .. " " .. cmd):lower():match("omp")
             if not is_ai then return end -- plain shell: the global nav maps are correct
-            -- AI panel: shadow the global nav maps so Ctrl+h/j/k/l reach the inner app.
+            -- AI panel: shadow the global nav maps for <C-j/k/l> so the inner app
+            -- gets them. <C-h> is deliberately NOT shadowed — it keeps the global
+            -- :TmuxNavigateLeft map so you can step left out of the AI pane.
             local opts = { buffer = ev.buf, silent = true }
-            for _, k in ipairs({ "<C-h>", "<C-j>", "<C-k>", "<C-l>" }) do
+            for _, k in ipairs({ "<C-j>", "<C-k>", "<C-l>" }) do
                 vim.keymap.set("t", k, k, opts) -- literal passthrough to the terminal job
             end
         end, 50)
