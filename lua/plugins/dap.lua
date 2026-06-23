@@ -155,6 +155,11 @@ vim.keymap.set({ "n", "v" }, "<leader>de", function() require("dapui").eval() en
 vim.keymap.set({ "n", "v" }, "<leader>dw", function() require("dapui").eval(nil, { enter = true }) end,
     { desc = "DAP Eval (peek + focus)" })
 
+-- <leader>dA — Auto-Debug: resolve (builtin/vscode/cache) or discover a debug
+-- config with Claude, gated by a confirm surfacing the literal command.
+map("<leader>dA", function() require("util.autodebug").auto_debug() end,
+    "Auto-Debug (resolve or discover config)")
+
 -- <leader>d* — .NET workflow (matches old config exactly)
 local dotnet = function() return require("util.dotnet-debug") end
 map("<leader>dd", function() dotnet().debug_with_terminal() end, "Debug .NET (build + run + auto-attach)")
@@ -173,3 +178,10 @@ map("<leader>Gb", function() godot().build() end,          "Build (dotnet build)
 map("<leader>Gi", function() godot().import_assets() end,  "Re-import assets (--headless --import)")
 map("<leader>GT", function() godot().toggle_terminal() end, "Toggle Godot terminal")
 map("<leader>GS", function() godot().stop() end,           "Stop Godot")
+
+-- which-key icon under the existing <leader>d "Debug" group (no new group)
+pcall(function()
+  require("which-key").add({
+    { "<leader>dA", icon = { icon = "󰚥", color = "cyan" } },
+  })
+end)
