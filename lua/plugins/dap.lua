@@ -32,13 +32,33 @@ require("mason-tool-installer").setup({
 -- it overwrites dap.configurations.cs and conflicts with our attach flow
 -- (matches old ~/.config/nvim setup that works).
 -- ---------------------------------------------------------------------------
-local netcoredbg = {
-  type = "executable",
-  -- Resolve at debug time, not require time — mason may install it after this
-  -- file loads, so a value captured here could be an empty string.
-  command = function() return vim.fn.exepath("netcoredbg") end,
-  args = { "--interpreter=vscode" },
-}
+-- Resolve at debug time, not require time — mason may install netcoredbg after
+-- this file loads, so a path captured here could be an empty string.
+-- The *adapter* is the function (nvim-dap calls it with (callback, config));
+-- `command` itself MUST be a string — a function there reaches uv.spawn
+-- verbatim and dies with "bad argument #1 to 'spawn' (string expected, got
+-- function)" at dap/session.lua:1608.
+local function netcoredbg_path()
+  local exe = vim.fn.exepath("netcoredbg")
+  if exe ~= "" then return exe end
+  local mason = vim.fn.stdpath("data") .. "/mason/bin/netcoredbg"
+  if vim.fn.executable(mason) == 1 then return mason end
+  return nil
+end
+
+local function netcoredbg(callback, _config)
+  local cmd = netcoredbg_path()
+  if not cmd then
+    vim.notify("netcoredbg not found — run :MasonInstall netcoredbg", vim.log.levels.ERROR)
+    return
+  end
+  callback({
+    type = "executable",
+    command = cmd,
+    args = { "--interpreter=vscode" },
+  })
+end
+
 dap.adapters.coreclr    = netcoredbg
 dap.adapters.netcoredbg = netcoredbg
 vim.opt.switchbuf:append("useopen")
