@@ -70,6 +70,8 @@ return {
     -- Git
     { src = "https://github.com/kdheepak/lazygit.nvim" },
     { src = "https://github.com/lewis6991/gitsigns.nvim" },
+    -- Branch/PR-scale diff review (gitsigns handles single files and hunks)
+    { src = "https://github.com/sindrets/diffview.nvim" },
     -- Project-wide find &amp; replace
     { src = "https://github.com/MagicDuck/grug-far.nvim" },
 

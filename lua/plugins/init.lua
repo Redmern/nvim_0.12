@@ -26,6 +26,7 @@ local modules = {
     "lualine",
     "lazygit",
     "gitsigns",
+    "diffview",
     "grug-far",
     "trouble",
     "persistence",
