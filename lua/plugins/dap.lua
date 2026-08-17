@@ -39,10 +39,21 @@ require("mason-tool-installer").setup({
 -- verbatim and dies with "bad argument #1 to 'spawn' (string expected, got
 -- function)" at dap/session.lua:1608.
 local function netcoredbg_path()
+  local mason = vim.fn.stdpath("data") .. "/mason"
+
+  -- Windows first: mason/bin/netcoredbg.cmd is a batch shim, and nvim-dap hands
+  -- `command` straight to uv.spawn -> CreateProcess, which cannot execute a .cmd
+  -- (ENOENT). mason/bin is on PATH, so exepath() would find that shim — check
+  -- the real exe inside the package before falling through to it.
+  if vim.fn.has("win32") == 1 then
+    local exe = mason .. "/packages/netcoredbg/netcoredbg/netcoredbg.exe"
+    if vim.fn.filereadable(exe) == 1 then return exe end
+  end
+
   local exe = vim.fn.exepath("netcoredbg")
   if exe ~= "" then return exe end
-  local mason = vim.fn.stdpath("data") .. "/mason/bin/netcoredbg"
-  if vim.fn.executable(mason) == 1 then return mason end
+  local shim = mason .. "/bin/netcoredbg"
+  if vim.fn.executable(shim) == 1 then return shim end
   return nil
 end
 
@@ -168,12 +179,48 @@ map("<leader>du", dapui.toggle,          "Toggle DAP UI")
 map("<leader>dr", dap.repl.toggle,       "Toggle REPL")
 map("<leader>dl", dap.run_last,          "Run last")
 
--- Peek value: K-like hover popup. <leader>de = peek (closes on cursor move),
--- <leader>dw = peek and stay (enter the float to scroll/inspect children).
-vim.keymap.set({ "n", "v" }, "<leader>de", function() require("dapui").eval() end,
-    { desc = "DAP Eval (peek)" })
-vim.keymap.set({ "n", "v" }, "<leader>dw", function() require("dapui").eval(nil, { enter = true }) end,
-    { desc = "DAP Eval (peek + focus)" })
+-- Peek value: K-like hover popup. <leader>de puts the cursor *inside* the float
+-- (`enter = true`) so the object can be navigated and expanded; <leader>dw is
+-- the quick glance that stays in the buffer and closes on cursor move.
+-- These two were the other way round.
+vim.keymap.set({ "n", "v" }, "<leader>de", function() require("dapui").eval(nil, { enter = true }) end,
+    { desc = "DAP Eval (focus float)" })
+vim.keymap.set({ "n", "v" }, "<leader>dw", function() require("dapui").eval() end,
+    { desc = "DAP Eval (quick peek)" })
+
+-- Session-only eval shortcuts: bare `de`, and double-click on a variable.
+--
+-- These exist ONLY while a debug session is live. `de` is vim's
+-- delete-to-end-of-word and <2-LeftMouse> is select-word, both far too useful to
+-- claim permanently — so they are installed on event_initialized and removed
+-- again when the session ends. <leader>de works in both states and is unchanged.
+--
+-- The mouse mapping replays <LeftMouse> first so the cursor lands on the word
+-- that was clicked before dapui reads it.
+local function eval_focus() require("dapui").eval(nil, { enter = true }) end
+
+local debug_maps_on = false
+
+local function set_debug_maps()
+  if debug_maps_on then return end
+  debug_maps_on = true
+  vim.keymap.set({ "n", "v" }, "de", eval_focus, { desc = "DAP Eval (focus float)" })
+  vim.keymap.set("n", "<2-LeftMouse>",
+    "<LeftMouse><Cmd>lua require('dapui').eval(nil, { enter = true })<CR>",
+    { desc = "DAP Eval under mouse" })
+end
+
+local function clear_debug_maps()
+  if not debug_maps_on then return end
+  debug_maps_on = false
+  pcall(vim.keymap.del, { "n", "v" }, "de")
+  pcall(vim.keymap.del, "n", "<2-LeftMouse>")
+end
+
+dap.listeners.after.event_initialized["eval_shortcuts"] = set_debug_maps
+dap.listeners.before.event_terminated["eval_shortcuts"] = clear_debug_maps
+dap.listeners.before.event_exited["eval_shortcuts"] = clear_debug_maps
+dap.listeners.before.disconnect["eval_shortcuts"] = clear_debug_maps
 
 -- <leader>dA — Auto-Debug: resolve (builtin/vscode/cache) or discover a debug
 -- config with Claude, gated by a confirm surfacing the literal command.

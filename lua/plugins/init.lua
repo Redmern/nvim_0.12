@@ -41,7 +41,7 @@ local modules = {
     "mini",
     "claudecode",
     "omp",
-    "tmux-navigator",
+    "smart-splits",
     "toggleterm",
 }
 

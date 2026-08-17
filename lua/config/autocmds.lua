@@ -24,7 +24,11 @@ local fallback = { colorscheme = "catppuccin", bg = "dark" }
 
 local applied_theme -- last Omarchy theme name we actually applied
 local function sync_os_theme()
-  local handle = io.open(os.getenv("HOME") .. "/.config/omarchy/current/theme.name", "r")
+  -- os.getenv("HOME") is nil on Windows; concatenating it threw and aborted the
+  -- rest of init.lua (config.keymaps never loaded). os_homedir() is portable and
+  -- the io.open simply misses on any box without Omarchy, landing on `fallback`.
+  local home = vim.uv.os_homedir() or ""
+  local handle = io.open(home .. "/.config/omarchy/current/theme.name", "r")
   local name = handle and handle:read("*l") or ""
   if handle then handle:close() end
 
@@ -64,9 +68,12 @@ vim.api.nvim_create_user_command("ThemeReload", sync_os_theme,
 -- Omarchy's stock `theme-set` hook only pokes zsh/tmux (no RPC to nvim), so
 -- we self-watch the file via libuv. Re-arm after each event because the
 -- file may be replaced via rename, breaking the original fs_event handle.
-local theme_file = os.getenv("HOME") .. "/.config/omarchy/current/theme.name"
+-- Skipped when the file doesn't exist (any non-Omarchy box, e.g. Windows):
+-- fs_event:start on a missing path errors, and there is nothing to watch.
+local theme_file = (vim.uv.os_homedir() or "") .. "/.config/omarchy/current/theme.name"
 local fs_handle
 local function watch_theme_file()
+  if vim.fn.filereadable(theme_file) ~= 1 then return end
   if fs_handle then pcall(function() fs_handle:close() end) end
   fs_handle = vim.uv.new_fs_event()
   fs_handle:start(theme_file, {}, vim.schedule_wrap(function(err)
@@ -90,6 +97,27 @@ style_line_numbers()
 vim.api.nvim_create_autocmd("ColorScheme", { callback = style_line_numbers })
 
 -- ---------------------------------------------------------------------------
+-- Comment coloring for yaml (and the bash injected into its `script:` blocks).
+-- nvim-treesitter's yaml injections.scm runs the bash parser over run/script
+-- block scalars, so `#` lines in an Azure Pipelines `script: |` are
+-- @comment.bash, not @comment.yaml. catppuccin mocha puts Comment (#9399b2) on
+-- the same lavender-grey axis as Normal text (#cdd6f4), so at terminal font
+-- size comments stop reading as comments. Shift them to green-grey + italic.
+-- Only the language-scoped captures are set (nvim resolves @<capture>.<lang>
+-- before falling back to @<capture>), so C#/Lua comments keep the theme's own
+-- color. Re-applied on ColorScheme, same as style_line_numbers above.
+-- ---------------------------------------------------------------------------
+local function style_comments()
+  local fg = vim.o.background == "light" and "#4c6b52" or "#7f9f7f"
+  for _, group in ipairs({ "@comment.yaml", "@comment.bash" }) do
+    vim.api.nvim_set_hl(0, group, { fg = fg, italic = true })
+  end
+end
+
+style_comments()
+vim.api.nvim_create_autocmd("ColorScheme", { callback = style_comments })
+
+-- ---------------------------------------------------------------------------
 -- Cursor color synced to the Ghostty trailing-cursor animation.
 -- That trail is baked from `palette = 4` (the accent) of the active theme's
 -- ghostty.conf (see ~/.config/omarchy/hooks/generate-cursor-trail). We read
@@ -99,7 +127,10 @@ vim.api.nvim_create_autocmd("ColorScheme", { callback = style_line_numbers })
 -- ---------------------------------------------------------------------------
 local function style_cursor()
   local accent
-  local f = io.open(os.getenv("HOME") .. "/.config/omarchy/current/theme/ghostty.conf", "r")
+  -- os_homedir() not os.getenv("HOME"): the latter is nil on Windows and the
+  -- concat aborted init.lua. Off Omarchy the open just misses -> fallback accent.
+  local home = vim.uv.os_homedir() or ""
+  local f = io.open(home .. "/.config/omarchy/current/theme/ghostty.conf", "r")
   if f then
     for line in f:lines() do
       local hex = line:match("^palette%s*=%s*4=#?(%x%x%x%x%x%x)")

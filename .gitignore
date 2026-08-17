@@ -12,3 +12,4 @@ Directory.Build.props.user
 # Editor/tooling backups — git history is the backup now (no more *.bak.<ts>).
 *.bak
 *.bak.*
+.gstack/

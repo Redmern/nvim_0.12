@@ -63,7 +63,11 @@ return {
     { src = "https://github.com/nvim-lualine/lualine.nvim" },
     { src = "https://github.com/nvim-tree/nvim-web-devicons" },
     { src = "https://github.com/lukas-reineke/indent-blankline.nvim" },
-    { src = "https://github.com/norcalli/nvim-colorizer.lua" },
+    -- catgoose fork, not norcalli/: upstream's last commit is 2021-04-28 and it
+    -- calls vim.tbl_flatten, which is removed in nvim 0.13 (currently a startup
+    -- deprecation warning, later a hard break). The fork is the maintained
+    -- continuation and keeps the same option names.
+    { src = "https://github.com/catgoose/nvim-colorizer.lua" },
     { src = "https://github.com/MeanderingProgrammer/render-markdown.nvim" },
     { src = "https://github.com/s1n7ax/nvim-window-picker" },
 
@@ -84,7 +88,10 @@ return {
 
     -- Motion / navigation
     { src = "https://github.com/folke/flash.nvim" },
-    { src = "https://github.com/christoomey/vim-tmux-navigator" },
+    -- smart-splits over vim-tmux-navigator: it also hands off to WezTerm (via
+    -- `wezterm cli activate-pane-direction`), so the same C-h/j/k/l crosses the
+    -- split edge on Windows/WezTerm as well as inside tmux on WSL.
+    { src = "https://github.com/mrjones2014/smart-splits.nvim" },
     { src = "https://github.com/akinsho/toggleterm.nvim" },
 
     -- mini.* umbrella — single repo, multiple modules (ai, pairs, comment, surround)

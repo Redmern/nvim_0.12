@@ -6,7 +6,59 @@
 local CAP_L, CAP_R = "\238\130\182", "\238\130\180" -- U+E0B6 / U+E0B4 as byte escapes
 
 -- slope's chars are { right, left }; swap the slanted glyphs for round caps.
-require("bufferline.constants").sep_chars.slope = { CAP_R, CAP_L }
+local constants = require("bufferline.constants")
+constants.sep_chars.slope = { CAP_R, CAP_L }
+
+-- Second hijack, same reason as the first. For any slant/slope style bufferline
+-- hardcodes the indicator segment to `{ text = " ", highlight = nil }`
+-- (ui.lua `add_indicator`), and a nil highlight emits no `%#Group#` — so that
+-- cell inherits whatever came before it. That's the left cap, drawn with
+-- `separator_selected` (bg = NONE, fg = pill, so the arc's outer corners stay
+-- transparent and the cap reads as round). Net effect: a one-cell transparent
+-- notch bitten out of the pill between the cap and the tab body, visible only
+-- on the active tab — inactive ones are bg = NONE end to end.
+--
+-- Not fixable from opts: `indicator.style` is only consulted *after* the slant
+-- early-return, and giving `separator_selected` a bg squares off the cap.
+-- So stamp the buffer highlight (the pill bg) onto that one cell.
+--
+-- Nothing here is OS-specific; what it *is* coupled to is bufferline's internals
+-- (pinned at 655133c3 in nvim-pack-lock.json). Every step is therefore optional:
+-- a missing module, a renamed `ui.element`, or an upstream fix that stops
+-- emitting the nil-highlight cell all leave this a silent no-op rather than a
+-- broken tabline. The `__pill_indicator_patched` flag keeps `:source %` from
+-- stacking a fresh wrapper on every reload.
+local ok_ui, ui = pcall(require, "bufferline.ui")
+local ok_hl, ui_highlights = pcall(require, "bufferline.highlights")
+
+if ok_ui and ok_hl and type(ui.element) == "function" and not ui.__pill_indicator_patched then
+    ui.__pill_indicator_patched = true
+
+    local PADDING = constants.padding
+    local render_element = ui.element
+
+    ui.element = function(state, element)
+        local el = render_element(state, element)
+        if type(el) ~= "table" or type(el.component) ~= "function" then return el end
+
+        local ok, buffer_hl = pcall(function() return ui_highlights.for_element(element).buffer end)
+        if not ok or not buffer_hl then return el end
+
+        local render = el.component
+        el.component = function(next_item)
+            local segments = render(next_item)
+            if type(segments) ~= "table" then return segments end
+            for _, segment in ipairs(segments) do
+                if segment.highlight == nil and segment.text == PADDING then
+                    segment.highlight = buffer_hl
+                    break
+                end
+            end
+            return segments
+        end
+        return el
+    end
+end
 
 local function palette()
     local ok, p = pcall(function() return require("catppuccin.palettes").get_palette() end)

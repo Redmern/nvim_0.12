@@ -1,7 +1,69 @@
+-- Route to the right account by folder: the wrapper picks CLAUDE_CONFIG_DIR
+-- from the working directory (~/work -> work account, else personal).
+-- Windows has no such wrapper, so `claude` on PATH it is — but see below.
+local profile_wrapper = vim.fn.expand("$HOME/.local/bin/claude-profile")
+local claude_cmd = vim.fn.executable(profile_wrapper) == 1 and profile_wrapper or "claude"
+
+-- Windows account routing. claudecode spawns claude as a direct child of nvim,
+-- so it inherits nvim's environment and misses both Windows hooks: the
+-- PowerShell `claude` function (only wraps launches typed in pwsh) and the
+-- cmd.exe AutoRun hook at ~\.claude-profile-hook.cmd (only cmd.exe sessions,
+-- which is what fleet spawns go through). Set the variable here instead.
+if vim.fn.has("win32") == 1 then
+  -- lowercase root, no trailing separator -> config dir. This list is duplicated
+  -- in $ClaudeProfileRoots (PowerShell profile) and ~\.claude-profile-hook.cmd;
+  -- change one, change all three.
+  local roots = { ["c:\\personal"] = (vim.env.USERPROFILE or "") .. "\\.claude-personal" }
+
+  -- Anything already in the environment was set deliberately (a `personal`
+  -- wezterm window, an explicit export) and outranks the folder rules.
+  local inherited = vim.env.CLAUDE_CONFIG_DIR
+
+  local function apply_account_profile()
+    if inherited then
+      return
+    end
+    local cwd = (vim.fn.getcwd() or ""):gsub("/", "\\"):lower()
+    for root, dir in pairs(roots) do
+      if cwd == root or cwd:sub(1, #root + 1) == root .. "\\" then
+        vim.env.CLAUDE_CONFIG_DIR = dir
+        return
+      end
+    end
+    vim.env.CLAUDE_CONFIG_DIR = nil -- default profile: work account
+  end
+
+  apply_account_profile()
+  vim.api.nvim_create_autocmd("DirChanged", { callback = apply_account_profile })
+end
+
+-- Windows: claudecode.nvim picks its port by test-binding a probe socket in
+-- find_available_port(), closing it, then binding that same port for real in
+-- create_server(). libuv closes handles asynchronously and Windows binds with
+-- SO_EXCLUSIVEADDRUSE, so the probe can still own the port when the real
+-- listen() lands -> "Failed to listen on port N: EADDRINUSE" at init.
+-- Retry: each attempt re-rolls a random port, and vim.wait pumps the event
+-- loop so the previous probe handle is actually reaped in between.
+if vim.fn.has("win32") == 1 then
+  local tcp = require("claudecode.server.tcp")
+  local create_server = tcp.create_server
+  tcp.create_server = function(config, callbacks, auth_token)
+    local server, err
+    for attempt = 1, 5 do
+      server, err = create_server(config, callbacks, auth_token)
+      if server then
+        return server, nil
+      end
+      if attempt < 5 then
+        vim.wait(25)
+      end
+    end
+    return nil, err
+  end
+end
+
 require("claudecode").setup({
-  -- Route to the right account by folder: the wrapper picks CLAUDE_CONFIG_DIR
-  -- from the working directory (~/work -> work account, else personal).
-  terminal_cmd = vim.fn.expand("$HOME/.local/bin/claude-profile"),
+  terminal_cmd = claude_cmd,
   -- Spawn Claude in nvim's project cwd so the wrapper sees the right folder.
   cwd_provider = function(ctx)
     return ctx.cwd

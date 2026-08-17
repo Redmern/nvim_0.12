@@ -142,8 +142,8 @@
       "src": "https://github.com/catppuccin/nvim"
     },
     "nvim-colorizer.lua": {
-      "rev": "a065833f35a3a7cc3ef137ac88b5381da2ba302e",
-      "src": "https://github.com/norcalli/nvim-colorizer.lua"
+      "rev": "72a05f62c52241bc7441c820eb53946f92b2e6a4",
+      "src": "https://github.com/catgoose/nvim-colorizer.lua"
     },
     "nvim-dap": {
       "rev": "531771530d4f82ad2d21e436e3cc052d68d7aebb",
@@ -218,6 +218,10 @@
     "roslyn.nvim": {
       "rev": "6db5f6619f7e3063dc087ce6fad6ee0d307ff8ea",
       "src": "https://github.com/seblyng/roslyn.nvim"
+    },
+    "smart-splits.nvim": {
+      "rev": "529e8f238bce3004c624f0c96e03a6ee506b6773",
+      "src": "https://github.com/mrjones2014/smart-splits.nvim"
     },
     "supermaven-nvim": {
       "rev": "07d20fce48a5629686aefb0a7cd4b25e33947d50",
