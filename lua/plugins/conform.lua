@@ -1,6 +1,10 @@
 require("conform").setup({
     formatters_by_ft = {
-        cs   = { "csharpier" },
+        -- C#: no entry on purpose. csharpier reflows whole files at its own print
+        -- width; this repo was never formatted with it, so every save churned
+        -- unrelated lines. Falling through to lsp_fallback lets roslyn_ls format --
+        -- the same Roslyn formatter + .editorconfig teammates' VS/Rider use, and it
+        -- does not rewrap lines.
         lua  = { "stylua" },
         json = { "prettier" },
     },
