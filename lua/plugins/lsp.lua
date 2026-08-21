@@ -124,6 +124,18 @@ vim.api.nvim_create_autocmd("LspAttach", {
       vim.lsp.inlay_hint.enable(not vim.lsp.inlay_hint.is_enabled({ bufnr = args.buf }), { bufnr = args.buf })
     end, "Toggle inlay hints")
 
+    -- Restart the servers attached to this buffer. For Roslyn this is the only
+    -- way to re-run project initialization: lspconfig sends solution/open from
+    -- on_init, so a fresh client is what re-reads the .sln.
+    map("<leader>lR", function()
+      local names = vim.tbl_map(function(c) return c.name end, vim.lsp.get_clients({ bufnr = args.buf }))
+      if #names == 0 then
+        return vim.notify("No LSP client attached to this buffer.", vim.log.levels.WARN)
+      end
+      vim.notify("Restarting LSP: " .. table.concat(names, ", "), vim.log.levels.INFO)
+      vim.cmd("lsp restart")
+    end, "Restart LSP on this buffer")
+
     -- Auto-enable inlay hints if the server supports them
     local client = vim.lsp.get_client_by_id(args.data.client_id)
     if client and client.server_capabilities and client.server_capabilities.inlayHintProvider then

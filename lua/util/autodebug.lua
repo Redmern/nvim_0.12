@@ -308,7 +308,7 @@ function M.resolve(ft, root)
 end
 
 -- ---------------------------------------------------------------------------
--- Discovery — headless `claude-profile -p` via async vim.system, read-only.
+-- Discovery — headless `claude-profile -p` (or plain `claude` on Windows) via async vim.system, read-only.
 -- Returns the validated config table (from .structured_output) via cb, or
 -- cb(nil, err). NO --permission-mode plan; --json-schema is an INLINE string.
 -- ---------------------------------------------------------------------------
@@ -353,9 +353,20 @@ local function installed_adapters_blurb()
   return table.concat(lines, "\n")
 end
 
+-- The CLI is `claude-profile` (the account-routing wrapper) on Linux; Windows
+-- has no wrapper, so fall back to plain `claude` — claudecode.lua already sets
+-- CLAUDE_CONFIG_DIR per cwd there, and vim.system inherits nvim's env.
+function M.cli()
+  for _, name in ipairs({ "claude-profile", "claude" }) do
+    if vim.fn.executable(name) == 1 then return name end
+  end
+  return nil
+end
+
 function M.discover(root, cb)
-  if vim.fn.executable("claude-profile") == 0 then
-    return cb(nil, "claude-profile not on PATH")
+  local cli = M.cli()
+  if not cli then
+    return cb(nil, "neither claude-profile nor claude on PATH")
   end
   local prompt = table.concat({
     "Scan this repository (read-only) and produce a single nvim-dap debug",
@@ -366,7 +377,7 @@ function M.discover(root, cb)
   }, " ")
 
   local cmd = {
-    "claude-profile", "-p", prompt,
+    cli, "-p", prompt,
     "--output-format", "json",
     "--json-schema", M.schema_json(), -- INLINE json string, not a path
     "--allowedTools", "Read,Glob,Grep",
@@ -376,11 +387,11 @@ function M.discover(root, cb)
   vim.system(cmd, { cwd = root, text = true }, function(res)
     vim.schedule(function()
       if res.code ~= 0 then
-        return cb(nil, "claude-profile exited " .. tostring(res.code) .. ": " .. (res.stderr or ""))
+        return cb(nil, cli .. " exited " .. tostring(res.code) .. ": " .. (res.stderr or ""))
       end
       local ok, env = pcall(vim.json.decode, res.stdout or "")
       if not ok or type(env) ~= "table" then
-        return cb(nil, "could not parse claude-profile JSON envelope")
+        return cb(nil, "could not parse " .. cli .. " JSON envelope")
       end
       local cfg = env.structured_output
       if type(cfg) ~= "table" then
@@ -509,8 +520,8 @@ function M.auto_debug()
   end
 
   -- source == "none" → discovery (opt-in egress + cost consent)
-  if vim.fn.executable("claude-profile") == 0 then
-    vim.notify("Auto-Debug: claude-profile not on PATH; cannot discover.", vim.log.levels.ERROR)
+  if not M.cli() then
+    vim.notify("Auto-Debug: neither claude-profile nor claude on PATH; cannot discover.", vim.log.levels.ERROR)
     return
   end
   if not confirm_discovery(root) then
