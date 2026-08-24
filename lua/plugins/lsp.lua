@@ -120,6 +120,7 @@ vim.api.nvim_create_autocmd("LspAttach", {
     map("<leader>lr", vim.lsp.buf.rename, "Rename")
     map("<leader>la", vim.lsp.buf.code_action, "Code action")
     map("<leader>ld", vim.diagnostic.open_float, "Line diagnostics")
+    map("<leader>lk", vim.lsp.buf.signature_help, "Signature help") -- <C-s> in insert mode does the same, but is XOFF in some terminals
     map("<leader>lh", function()
       vim.lsp.inlay_hint.enable(not vim.lsp.inlay_hint.is_enabled({ bufnr = args.buf }), { bufnr = args.buf })
     end, "Toggle inlay hints")
