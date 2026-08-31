@@ -73,6 +73,7 @@ return {
     -- Markdown: browser live-preview (pure Lua, no node/deno) + paste-image
     { src = "https://github.com/brianhuster/live-preview.nvim" },
     { src = "https://github.com/HakonHarnes/img-clip.nvim" },
+    { src = "https://github.com/gaoDean/autolist.nvim" },
 
     -- Git
     { src = "https://github.com/kdheepak/lazygit.nvim" },

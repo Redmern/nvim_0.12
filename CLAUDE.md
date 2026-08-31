@@ -46,9 +46,12 @@ Adding a plugin = three edits:
 
 **Markdown** — display + editing, split across a few files:
 - `lua/plugins/render-markdown.lua` — in-buffer rendering (headings, code, tables), stays on in visual modes for presenting.
-- `lua/plugins/live-preview.lua` — `brianhuster/live-preview.nvim`, pure-Lua browser preview (no node/deno), KaTeX + Mermaid + synced scroll. `<leader>mp` toggles it (server on `:5500`), `<leader>mP` = `:LivePreview pick`.
+- `lua/plugins/live-preview.lua` — `brianhuster/live-preview.nvim`, pure-Lua browser preview (no node/deno), KaTeX + Mermaid + synced scroll. `<leader>mp` toggles it (server on `:5500`), `<leader>mP` = `:LivePreview pick`. `dynamic_root = false` (server rooted at cwd) so `.md`→`.md` links navigate between rendered pages in the browser — launch nvim at the vault root.
 - `lua/plugins/img-clip.lua` — `<leader>mi` pastes a clipboard image to `<doc-dir>/assets/` and inserts the `![]()` link. Wayland → needs `wl-clipboard`.
-- `lua/util/markdown.lua` — no-plugin helpers wired in `config/keymaps.lua`'s markdown `FileType` block: `<leader>mx` toggle checkbox (line or visual range), `<leader>mo` heading TOC via `vim.ui.select`, `<leader>mt` prettier reflow (whole-buffer; aligns tables). `tt` (insert new checkbox) also lives there.
+- `marksman` LSP (`lua/plugins/lsp.lua` — `mason-lspconfig` `ensure_installed` + `vim.lsp.enable`). Gives markdown `gd`/`gr`/`K`, doc-symbol outline, link/anchor completion, broken-link diagnostics, and heading-rename → link fixups (via the standard `LspAttach` maps).
+- `lua/plugins/autolist.lua` — `autolist.nvim` engine only; its keymaps are buffer-local in the `keymaps.lua` markdown `FileType` block (NOT bound: insert `<Tab>`/`<S-Tab>` — blink owns those; normal `<C-r>` — redo. List indent uses insert `<C-t>`/`<C-d>` wrapped to recalculate).
+- `lua/util/markdown.lua` — no-plugin helpers wired in `config/keymaps.lua`'s markdown `FileType` block: `<leader>mx` toggle checkbox (line or visual range), `<leader>mo` heading TOC via `vim.ui.select`, `<leader>mt` prettier reflow, `<CR>`/`gf` `follow_link` (`[[wiki]]` / `[x](f.md)` / url; creates missing files, falls back to plain `<CR>`), `<leader>ml` `paste_url_link` (wrap visual selection), `]]`/`[[` heading nav. Also sets treesitter `foldexpr` for fold-by-heading.
+- Callout snippets (`> [!NOTE]` …) are `ls.add_snippets("markdown", …)` in `lua/plugins/luasnip.lua`.
 - Presenting: `config/autocmds.lua` dims the buffer and spotlights the visual selection while a visual mode is active in a markdown buffer.
 
 **Diagnostics rendering**: end-of-line `●` for every diagnostic; cursor line additionally gets the full message via `tiny-inline-diagnostic.nvim`. Sign column off.

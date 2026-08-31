@@ -133,6 +133,13 @@ echo 'kernel.yama.ptrace_scope = 0' | sudo tee /etc/sysctl.d/10-ptrace.conf
 | `<leader>mx`    | markdown: toggle `- [ ]` / `- [x]` (line or selection) |
 | `<leader>mo`    | markdown: heading outline / jump (TOC)            |
 | `<leader>mt`    | markdown: reflow via prettier (aligns tables)     |
+| `<CR>` / `gf`   | markdown: follow link under cursor (`[[wiki]]`, `[x](f.md)`, url); creates the file if missing |
+| `<BS>`          | markdown: jump back                               |
+| `]]` / `[[`     | markdown: next / previous heading                 |
+| `<leader>ml`    | markdown: wrap visual selection as `[sel](clipboard-url)` |
+| `o` / `O` / `<CR>`(i) | markdown: continue the list (autolist); `>>`/`<<` re-indent + renumber |
+| `<leader>mc` / `<leader>mr` | markdown: cycle list marker / renumber |
+| `note`→`<Tab>`  | markdown: expand a `> [!NOTE]` callout (also `tip`/`warning`/`important`/`caution`) |
 
 `<leader>` opens the which-key popup — every chord is discoverable from
 there.

@@ -7,7 +7,11 @@
 require("livepreview.config").set({
     port = 5500,
     browser = "default", -- $BROWSER / xdg-open
-    dynamic_root = true, -- serve from the file's own dir, not cwd
+    -- root = cwd (not the file's own dir): links between .md files resolve and
+    -- the browser navigates to the linked file rendered as HTML, as long as
+    -- both sit under the dir nvim was launched from. Launch nvim at the vault
+    -- root for a set of interlinked notes.
+    dynamic_root = false,
     sync_scroll = true,
     picker = "", -- auto-detect; falls back to vim.ui.select
 })

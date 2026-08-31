@@ -38,6 +38,7 @@ local modules = {
     "render-markdown",
     "live-preview",
     "img-clip",
+    "autolist",
     "window-picker",
     "noice",
     "mini",
