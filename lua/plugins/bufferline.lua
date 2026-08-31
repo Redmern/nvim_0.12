@@ -42,15 +42,23 @@ if ok_ui and ok_hl and type(ui.element) == "function" and not ui.__pill_indicato
 
     ui.element = function(state, element)
         local el = render_element(state, element)
-        if type(el) ~= "table" or type(el.component) ~= "function" then return el end
+        if type(el) ~= "table" or type(el.component) ~= "function" then
+            return el
+        end
 
-        local ok, buffer_hl = pcall(function() return ui_highlights.for_element(element).buffer end)
-        if not ok or not buffer_hl then return el end
+        local ok, buffer_hl = pcall(function()
+            return ui_highlights.for_element(element).buffer
+        end)
+        if not ok or not buffer_hl then
+            return el
+        end
 
         local render = el.component
         el.component = function(next_item)
             local segments = render(next_item)
-            if type(segments) ~= "table" then return segments end
+            if type(segments) ~= "table" then
+                return segments
+            end
             for _, segment in ipairs(segments) do
                 if segment.highlight == nil and segment.text == PADDING then
                     segment.highlight = buffer_hl
@@ -63,58 +71,64 @@ if ok_ui and ok_hl and type(ui.element) == "function" and not ui.__pill_indicato
     end
 end
 
--- Follow the active Omarchy theme (same source as lualine — util/omarchy-palette
--- parses the theme's ghostty.conf). Falls back to catppuccin, then a mocha table,
--- so a box without Omarchy still gets sane pill colours. Re-read on every
--- ColorScheme via the setup() call at the bottom of this file.
+-- Follow whatever colorscheme is active by reading its live highlight groups
+-- (CursorLine, Normal, Comment, …) instead of any one plugin's palette. Works
+-- for every theme the Omarchy sync maps to, and re-derives on ColorScheme via
+-- the setup() call at the bottom of this file.
 local FALLBACK = {
-    surface0 = "#313244", mantle = "#181825", text = "#cdd6f4",
-    overlay1 = "#7f849c", overlay0 = "#6c7086", peach = "#fab387",
+    surface0 = "#313244",
+    mantle = "#181825",
+    text = "#cdd6f4",
+    overlay1 = "#7f849c",
+    overlay0 = "#6c7086",
+    peach = "#fab387",
 }
 
-local function palette()
-    local ok, p = pcall(function() return require("util.omarchy-palette").get() end)
-    if ok and type(p) == "table" then
-        for k, v in pairs(FALLBACK) do
-            if not p[k] then p[k] = v end
-        end
-        p.__omarchy = true -- mantle/bg came from the theme's ghostty.conf (= terminal bg)
-        return p
+local function hex(group, attr)
+    local ok, h = pcall(vim.api.nvim_get_hl, 0, { name = group, link = false })
+    if ok and h and h[attr] then
+        return string.format("#%06x", h[attr])
     end
-    local ok2, cp = pcall(function() return require("catppuccin.palettes").get_palette() end)
-    if ok2 and type(cp) == "table" then
-        for k, v in pairs(FALLBACK) do
-            if not cp[k] then cp[k] = v end
-        end
-        return cp
-    end
-    return FALLBACK
+    return nil
 end
 
 -- Mix two "#rrggbb" by t (0 = a, 1 = b).
 local function blend(a, b, t)
-    local function rgb(h) return tonumber(h:sub(2, 3), 16), tonumber(h:sub(4, 5), 16), tonumber(h:sub(6, 7), 16) end
+    local function rgb(h)
+        return tonumber(h:sub(2, 3), 16), tonumber(h:sub(4, 5), 16), tonumber(h:sub(6, 7), 16)
+    end
     local ar, ag, ab = rgb(a)
     local br, bg, bb = rgb(b)
-    return string.format("#%02x%02x%02x",
+    return string.format(
+        "#%02x%02x%02x",
         math.floor(ar + (br - ar) * t + 0.5),
         math.floor(ag + (bg - ag) * t + 0.5),
-        math.floor(ab + (bb - ab) * t + 0.5))
+        math.floor(ab + (bb - ab) * t + 0.5)
+    )
+end
+
+-- Derive pill colours from the active colorscheme. The one thing every theme
+-- defines predictably is Normal (bg + fg); the "raised surface" for the active
+-- pill is just Normal bg nudged a little toward Normal fg. This stays in-theme
+-- for any colorscheme and is never a loud accent (TabLineSel/Visual bg are
+-- theme-dependent — some themes make them a saturated highlight, wrong for a
+-- pill). Re-derived on every ColorScheme via the setup() call at the bottom.
+local function palette()
+    local nbg = hex("Normal", "bg") or FALLBACK.mantle
+    local nfg = hex("Normal", "fg") or FALLBACK.text
+    return {
+        mantle = nbg, -- editor backdrop
+        text = nfg,
+        surface0 = blend(nbg, nfg, 0.13), -- active-tab pill: subtle raise
+        overlay1 = hex("Comment", "fg") or blend(nbg, nfg, 0.45),
+        peach = hex("DiagnosticWarn", "fg") or hex("WarningMsg", "fg") or FALLBACK.peach,
+    }
 end
 
 local function build_opts()
     local p = palette()
-    local pill = p.surface0 or "#313244" -- active-tab pill
-    -- Inactive tab end-caps are drawn as a solid glyph in this fg; to read as
-    -- "no pill" it must equal the editor backdrop exactly. omarchy-palette's
-    -- mantle IS the terminal bg (parsed from the theme's ghostty.conf), so trust
-    -- it when present. Only when that whole path failed (catppuccin fallback,
-    -- whose mantle #181825 is darker than most theme bgs and shows as dark
-    -- wedges) do we fall back to the live Normal bg / hardcoded shade.
-    local normal_bg = vim.api.nvim_get_hl(0, { name = "Normal" }).bg
-    local ghost = p.__omarchy and p.mantle
-        or (normal_bg and string.format("#%06x", normal_bg))
-        or p.mantle or "#181825"
+    local pill = p.surface0
+    local ghost = p.mantle -- inactive caps must equal the editor backdrop exactly
     local text = p.text or "#cdd6f4"
     local dim = p.overlay1 or p.overlay0 or "#6c7086"
     local peach = p.peach or "#fab387"
@@ -214,7 +228,9 @@ require("bufferline").setup(build_opts())
 -- everything turns grey. Re-init on every ColorScheme to refresh (rebuilds the
 -- palette-derived pill colors too).
 vim.api.nvim_create_autocmd("ColorScheme", {
-    callback = function() require("bufferline").setup(build_opts()) end,
+    callback = function()
+        require("bufferline").setup(build_opts())
+    end,
 })
 
 -- Shift-L / Shift-H to switch tabs
@@ -229,12 +245,12 @@ local function close_buffer_keep_layout()
     local bufnr = vim.api.nvim_get_current_buf()
 
     local alt = vim.fn.bufnr("#")
-    if alt < 1 or alt == bufnr or not vim.api.nvim_buf_is_valid(alt)
-       or not vim.bo[alt].buflisted then
+    if alt < 1 or alt == bufnr or not vim.api.nvim_buf_is_valid(alt) or not vim.bo[alt].buflisted then
         alt = -1
         for _, b in ipairs(vim.api.nvim_list_bufs()) do
             if b ~= bufnr and vim.bo[b].buflisted and vim.bo[b].buftype == "" then
-                alt = b; break
+                alt = b
+                break
             end
         end
     end

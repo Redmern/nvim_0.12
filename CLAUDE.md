@@ -42,7 +42,14 @@ Adding a plugin = three edits:
 - Global `LspAttach` autocmd installs `gd`/`gr`/`K`/`<leader>l{r,a,d,h}` and toggles inlay hints when the server supports them.
 - Pull + push diagnostic handlers are wrapped to drop `IDE0005` / `CS8019` (noisy "unused using" hints). Add codes to `SILENCED_DIAG_CODES` to silence more.
 
-**Formatting** (`lua/plugins/conform.lua`): `csharpier`/`stylua`/`prettier` by filetype, format-on-save with `lsp_fallback`. `<leader>lf` formats manually. `:FormatDisable[!]` / `:FormatEnable` toggle the save hook globally (or per-buffer with `!`).
+**Formatting** (`lua/plugins/conform.lua`): `stylua` (lua), `prettier` (json, markdown); C# falls through to `lsp_fallback` (roslyn) on purpose — see the comment. Format-on-save. `<leader>lf` formats manually. `:FormatDisable[!]` / `:FormatEnable` toggle the save hook globally (or per-buffer with `!`). `prettier` is installed by `mason-tool-installer` in `dap.lua`.
+
+**Markdown** — display + editing, split across a few files:
+- `lua/plugins/render-markdown.lua` — in-buffer rendering (headings, code, tables), stays on in visual modes for presenting.
+- `lua/plugins/live-preview.lua` — `brianhuster/live-preview.nvim`, pure-Lua browser preview (no node/deno), KaTeX + Mermaid + synced scroll. `<leader>mp` toggles it (server on `:5500`), `<leader>mP` = `:LivePreview pick`.
+- `lua/plugins/img-clip.lua` — `<leader>mi` pastes a clipboard image to `<doc-dir>/assets/` and inserts the `![]()` link. Wayland → needs `wl-clipboard`.
+- `lua/util/markdown.lua` — no-plugin helpers wired in `config/keymaps.lua`'s markdown `FileType` block: `<leader>mx` toggle checkbox (line or visual range), `<leader>mo` heading TOC via `vim.ui.select`, `<leader>mt` prettier reflow (whole-buffer; aligns tables). `tt` (insert new checkbox) also lives there.
+- Presenting: `config/autocmds.lua` dims the buffer and spotlights the visual selection while a visual mode is active in a markdown buffer.
 
 **Diagnostics rendering**: end-of-line `●` for every diagnostic; cursor line additionally gets the full message via `tiny-inline-diagnostic.nvim`. Sign column off.
 

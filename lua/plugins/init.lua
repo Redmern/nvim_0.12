@@ -36,6 +36,8 @@ local modules = {
     "indent-blankline",
     "colorizer",
     "render-markdown",
+    "live-preview",
+    "img-clip",
     "window-picker",
     "noice",
     "mini",

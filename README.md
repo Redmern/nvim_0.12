@@ -127,6 +127,12 @@ echo 'kernel.yama.ptrace_scope = 0' | sudo tee /etc/sysctl.d/10-ptrace.conf
 | `<F5>`/`<F9>`/`<F10>`/`<F11>` | DAP continue / breakpoint / over / into |
 | `<C-/>` or `<C-_>` | toggle a horizontal terminal                   |
 | `<C-h/j/k/l>`   | move between nvim splits (and tmux panes)         |
+| `<leader>mp`    | markdown: toggle browser live-preview (localhost:5500) |
+| `<leader>mP`    | markdown: pick a file to live-preview             |
+| `<leader>mi`    | markdown: paste image from clipboard → `assets/` + link |
+| `<leader>mx`    | markdown: toggle `- [ ]` / `- [x]` (line or selection) |
+| `<leader>mo`    | markdown: heading outline / jump (TOC)            |
+| `<leader>mt`    | markdown: reflow via prettier (aligns tables)     |
 
 `<leader>` opens the which-key popup — every chord is discoverable from
 there.

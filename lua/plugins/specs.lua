@@ -70,6 +70,9 @@ return {
     { src = "https://github.com/catgoose/nvim-colorizer.lua" },
     { src = "https://github.com/MeanderingProgrammer/render-markdown.nvim" },
     { src = "https://github.com/s1n7ax/nvim-window-picker" },
+    -- Markdown: browser live-preview (pure Lua, no node/deno) + paste-image
+    { src = "https://github.com/brianhuster/live-preview.nvim" },
+    { src = "https://github.com/HakonHarnes/img-clip.nvim" },
 
     -- Git
     { src = "https://github.com/kdheepak/lazygit.nvim" },
