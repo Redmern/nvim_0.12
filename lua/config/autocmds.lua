@@ -110,6 +110,23 @@ style_line_numbers()
 vim.api.nvim_create_autocmd("ColorScheme", { callback = style_line_numbers })
 
 -- ---------------------------------------------------------------------------
+-- Window separator (the │ between splits, e.g. neo-tree | editor).
+-- Many colorschemes `link WinSeparator Normal`, which paints the glyph in the
+-- foreground colour -- a bright white hairline. And when an Omarchy theme
+-- switch half-applies (colorscheme not installed -> partial :hi clear), the
+-- separator is one of the first things to go bright. Pin it to a dim grey,
+-- re-applied on ColorScheme like the line numbers above.
+-- ---------------------------------------------------------------------------
+local function style_separators()
+  for _, g in ipairs({ "WinSeparator", "VertSplit" }) do
+    vim.api.nvim_set_hl(0, g, { fg = "#313244", bg = "NONE" })  -- dim, no fill
+  end
+end
+
+style_separators()
+vim.api.nvim_create_autocmd("ColorScheme", { callback = style_separators })
+
+-- ---------------------------------------------------------------------------
 -- Comment coloring for yaml (and the bash injected into its `script:` blocks).
 -- nvim-treesitter's yaml injections.scm runs the bash parser over run/script
 -- block scalars, so `#` lines in an Azure Pipelines `script: |` are

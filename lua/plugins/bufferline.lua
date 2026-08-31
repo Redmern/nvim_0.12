@@ -1,6 +1,7 @@
 -- Pill-style tabs matching the tmux status bar: the active buffer sits in a
 -- filled rounded pill (darker than the tmux ones — surface0), inactive
--- buffers are plain dim text. Rounded caps come from hijacking bufferline's
+-- buffers get a fainter rounded pill (pill_dim, backdrop blended toward
+-- surface0 — see build_opts). Rounded caps come from hijacking bufferline's
 -- "slope" separator style — it's the only style that draws a separator on
 -- BOTH sides of every tab, which is what a pill needs.
 local CAP_L, CAP_R = "\238\130\182", "\238\130\180" -- U+E0B6 / U+E0B4 as byte escapes
@@ -16,7 +17,9 @@ constants.sep_chars.slope = { CAP_R, CAP_L }
 -- `separator_selected` (bg = NONE, fg = pill, so the arc's outer corners stay
 -- transparent and the cap reads as round). Net effect: a one-cell transparent
 -- notch bitten out of the pill between the cap and the tab body, visible only
--- on the active tab — inactive ones are bg = NONE end to end.
+-- on the active tab. (Inactive tabs are a flat pill_dim chip, so the notch
+-- would show there too — the patch loop stamps every element's buffer hl, not
+-- just the selected one, which covers both.)
 --
 -- Not fixable from opts: `indicator.style` is only consulted *after* the slant
 -- early-return, and giving `separator_selected` a bg squares off the cap.
@@ -60,18 +63,64 @@ if ok_ui and ok_hl and type(ui.element) == "function" and not ui.__pill_indicato
     end
 end
 
+-- Follow the active Omarchy theme (same source as lualine — util/omarchy-palette
+-- parses the theme's ghostty.conf). Falls back to catppuccin, then a mocha table,
+-- so a box without Omarchy still gets sane pill colours. Re-read on every
+-- ColorScheme via the setup() call at the bottom of this file.
+local FALLBACK = {
+    surface0 = "#313244", mantle = "#181825", text = "#cdd6f4",
+    overlay1 = "#7f849c", overlay0 = "#6c7086", peach = "#fab387",
+}
+
 local function palette()
-    local ok, p = pcall(function() return require("catppuccin.palettes").get_palette() end)
-    return (ok and type(p) == "table") and p or {}
+    local ok, p = pcall(function() return require("util.omarchy-palette").get() end)
+    if ok and type(p) == "table" then
+        for k, v in pairs(FALLBACK) do
+            if not p[k] then p[k] = v end
+        end
+        p.__omarchy = true -- mantle/bg came from the theme's ghostty.conf (= terminal bg)
+        return p
+    end
+    local ok2, cp = pcall(function() return require("catppuccin.palettes").get_palette() end)
+    if ok2 and type(cp) == "table" then
+        for k, v in pairs(FALLBACK) do
+            if not cp[k] then cp[k] = v end
+        end
+        return cp
+    end
+    return FALLBACK
+end
+
+-- Mix two "#rrggbb" by t (0 = a, 1 = b).
+local function blend(a, b, t)
+    local function rgb(h) return tonumber(h:sub(2, 3), 16), tonumber(h:sub(4, 5), 16), tonumber(h:sub(6, 7), 16) end
+    local ar, ag, ab = rgb(a)
+    local br, bg, bb = rgb(b)
+    return string.format("#%02x%02x%02x",
+        math.floor(ar + (br - ar) * t + 0.5),
+        math.floor(ag + (bg - ag) * t + 0.5),
+        math.floor(ab + (bb - ab) * t + 0.5))
 end
 
 local function build_opts()
     local p = palette()
-    local pill = p.surface0 or "#313244" -- active-tab pill, darker than the tmux blue
-    local ghost = p.mantle or "#181825" -- ~invisible over the dark backdrop
+    local pill = p.surface0 or "#313244" -- active-tab pill
+    -- Inactive tab end-caps are drawn as a solid glyph in this fg; to read as
+    -- "no pill" it must equal the editor backdrop exactly. omarchy-palette's
+    -- mantle IS the terminal bg (parsed from the theme's ghostty.conf), so trust
+    -- it when present. Only when that whole path failed (catppuccin fallback,
+    -- whose mantle #181825 is darker than most theme bgs and shows as dark
+    -- wedges) do we fall back to the live Normal bg / hardcoded shade.
+    local normal_bg = vim.api.nvim_get_hl(0, { name = "Normal" }).bg
+    local ghost = p.__omarchy and p.mantle
+        or (normal_bg and string.format("#%06x", normal_bg))
+        or p.mantle or "#181825"
     local text = p.text or "#cdd6f4"
-    local dim = p.overlay0 or "#6c7086"
+    local dim = p.overlay1 or p.overlay0 or "#6c7086"
     local peach = p.peach or "#fab387"
+    -- Inactive tabs get their own rounded pill too, a subtle one: backdrop
+    -- blended ~40% toward the active pill so it reads as a chip, not a slab.
+    local pill_dim = blend(ghost, pill, 0.4)
     local selected = { bg = pill, fg = text }
     return {
         options = {
@@ -92,56 +141,67 @@ local function build_opts()
         },
         -- Transparent bar; this file owns every BufferLine bg (autocmds no
         -- longer strips ^BufferLine, so the selected pill bg survives).
-        -- Inactive caps use the "ghost" shade — close enough to the backdrop
-        -- to read as no pill at all.
+        -- Inactive caps: fg AND bg both = "ghost" (the real backdrop shade). The
+        -- cap is a solid arc glyph; with bg = NONE its antialiased edge blends
+        -- toward transparent and leaves a faint outline on every inactive tab
+        -- ("darker sides"). Filling the cap cell with the backdrop colour makes
+        -- the glyph vanish. (Selected caps keep bg = NONE so the pill's outer
+        -- corners stay round — see the indicator-patch note at the top.)
+        --
+        -- Inactive tabs are now their own `pill_dim` chip. Their caps
+        -- (separator / separator_visible) draw the arc glyph in `pill_dim` with
+        -- bg = NONE, so the outer corners stay transparent and read as round —
+        -- same trick as separator_selected. The indicator patch at the top
+        -- stamps the buffer highlight (pill_dim) onto the notch cell for these
+        -- too, so the chip is gap-free.
         highlights = {
             fill = { bg = "NONE" },
-            background = { bg = "NONE", fg = dim },
-            buffer_visible = { bg = "NONE", fg = dim },
+            background = { bg = pill_dim, fg = dim },
+            buffer_visible = { bg = pill_dim, fg = dim },
             buffer_selected = { bg = pill, fg = text, bold = true, italic = false },
-            separator = { bg = "NONE", fg = ghost },
-            separator_visible = { bg = "NONE", fg = ghost },
+            separator = { bg = "NONE", fg = pill_dim },
+            separator_visible = { bg = "NONE", fg = pill_dim },
             separator_selected = { bg = "NONE", fg = pill },
-            close_button = { bg = "NONE", fg = dim },
-            close_button_visible = { bg = "NONE", fg = dim },
+            close_button = { bg = pill_dim, fg = dim },
+            close_button_visible = { bg = pill_dim, fg = dim },
             close_button_selected = selected,
-            modified = { bg = "NONE", fg = peach },
-            modified_visible = { bg = "NONE", fg = peach },
+            modified = { bg = pill_dim, fg = peach },
+            modified_visible = { bg = pill_dim, fg = peach },
             modified_selected = { bg = pill, fg = peach },
-            duplicate = { bg = "NONE", fg = dim, italic = true },
-            duplicate_visible = { bg = "NONE", fg = dim, italic = true },
+            duplicate = { bg = pill_dim, fg = dim, italic = true },
+            duplicate_visible = { bg = pill_dim, fg = dim, italic = true },
             duplicate_selected = { bg = pill, fg = dim, italic = true },
-            indicator_visible = { bg = "NONE" },
+            indicator_visible = { bg = pill_dim },
             indicator_selected = selected,
-            pick = { bg = "NONE", bold = true },
-            pick_visible = { bg = "NONE", bold = true },
+            pick = { bg = pill_dim, bold = true },
+            pick_visible = { bg = pill_dim, bold = true },
             pick_selected = { bg = pill, bold = true },
-            diagnostic = { bg = "NONE" },
-            diagnostic_visible = { bg = "NONE" },
+            diagnostic = { bg = pill_dim },
+            diagnostic_visible = { bg = pill_dim },
             diagnostic_selected = { bg = pill },
-            error = { bg = "NONE", fg = dim },
-            error_visible = { bg = "NONE", fg = dim },
+            error = { bg = pill_dim, fg = dim },
+            error_visible = { bg = pill_dim, fg = dim },
             error_selected = selected,
-            error_diagnostic = { bg = "NONE", fg = dim },
-            error_diagnostic_visible = { bg = "NONE", fg = dim },
+            error_diagnostic = { bg = pill_dim, fg = dim },
+            error_diagnostic_visible = { bg = pill_dim, fg = dim },
             error_diagnostic_selected = selected,
-            warning = { bg = "NONE", fg = dim },
-            warning_visible = { bg = "NONE", fg = dim },
+            warning = { bg = pill_dim, fg = dim },
+            warning_visible = { bg = pill_dim, fg = dim },
             warning_selected = selected,
-            warning_diagnostic = { bg = "NONE", fg = dim },
-            warning_diagnostic_visible = { bg = "NONE", fg = dim },
+            warning_diagnostic = { bg = pill_dim, fg = dim },
+            warning_diagnostic_visible = { bg = pill_dim, fg = dim },
             warning_diagnostic_selected = selected,
-            info = { bg = "NONE", fg = dim },
-            info_visible = { bg = "NONE", fg = dim },
+            info = { bg = pill_dim, fg = dim },
+            info_visible = { bg = pill_dim, fg = dim },
             info_selected = selected,
-            info_diagnostic = { bg = "NONE", fg = dim },
-            info_diagnostic_visible = { bg = "NONE", fg = dim },
+            info_diagnostic = { bg = pill_dim, fg = dim },
+            info_diagnostic_visible = { bg = pill_dim, fg = dim },
             info_diagnostic_selected = selected,
-            hint = { bg = "NONE", fg = dim },
-            hint_visible = { bg = "NONE", fg = dim },
+            hint = { bg = pill_dim, fg = dim },
+            hint_visible = { bg = pill_dim, fg = dim },
             hint_selected = selected,
-            hint_diagnostic = { bg = "NONE", fg = dim },
-            hint_diagnostic_visible = { bg = "NONE", fg = dim },
+            hint_diagnostic = { bg = pill_dim, fg = dim },
+            hint_diagnostic_visible = { bg = pill_dim, fg = dim },
             hint_diagnostic_selected = selected,
         },
     }
