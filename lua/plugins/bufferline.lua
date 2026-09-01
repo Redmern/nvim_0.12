@@ -1,6 +1,7 @@
 -- Pill-style tabs matching the tmux status bar: the active buffer sits in a
 -- filled rounded pill (darker than the tmux ones — surface0), inactive
--- buffers are plain dim text. Rounded caps come from hijacking bufferline's
+-- buffers get a fainter rounded pill (pill_dim, backdrop blended toward
+-- surface0 — see build_opts). Rounded caps come from hijacking bufferline's
 -- "slope" separator style — it's the only style that draws a separator on
 -- BOTH sides of every tab, which is what a pill needs.
 local CAP_L, CAP_R = "\238\130\182", "\238\130\180" -- U+E0B6 / U+E0B4 as byte escapes
@@ -16,7 +17,9 @@ constants.sep_chars.slope = { CAP_R, CAP_L }
 -- `separator_selected` (bg = NONE, fg = pill, so the arc's outer corners stay
 -- transparent and the cap reads as round). Net effect: a one-cell transparent
 -- notch bitten out of the pill between the cap and the tab body, visible only
--- on the active tab — inactive ones are bg = NONE end to end.
+-- on the active tab. (Inactive tabs are a flat pill_dim chip, so the notch
+-- would show there too — the patch loop stamps every element's buffer hl, not
+-- just the selected one, which covers both.)
 --
 -- Not fixable from opts: `indicator.style` is only consulted *after* the slant
 -- early-return, and giving `separator_selected` a bg squares off the cap.
@@ -39,15 +42,23 @@ if ok_ui and ok_hl and type(ui.element) == "function" and not ui.__pill_indicato
 
     ui.element = function(state, element)
         local el = render_element(state, element)
-        if type(el) ~= "table" or type(el.component) ~= "function" then return el end
+        if type(el) ~= "table" or type(el.component) ~= "function" then
+            return el
+        end
 
-        local ok, buffer_hl = pcall(function() return ui_highlights.for_element(element).buffer end)
-        if not ok or not buffer_hl then return el end
+        local ok, buffer_hl = pcall(function()
+            return ui_highlights.for_element(element).buffer
+        end)
+        if not ok or not buffer_hl then
+            return el
+        end
 
         local render = el.component
         el.component = function(next_item)
             local segments = render(next_item)
-            if type(segments) ~= "table" then return segments end
+            if type(segments) ~= "table" then
+                return segments
+            end
             for _, segment in ipairs(segments) do
                 if segment.highlight == nil and segment.text == PADDING then
                     segment.highlight = buffer_hl
@@ -60,18 +71,70 @@ if ok_ui and ok_hl and type(ui.element) == "function" and not ui.__pill_indicato
     end
 end
 
+-- Follow whatever colorscheme is active by reading its live highlight groups
+-- (CursorLine, Normal, Comment, …) instead of any one plugin's palette. Works
+-- for every theme the Omarchy sync maps to, and re-derives on ColorScheme via
+-- the setup() call at the bottom of this file.
+local FALLBACK = {
+    surface0 = "#313244",
+    mantle = "#181825",
+    text = "#cdd6f4",
+    overlay1 = "#7f849c",
+    overlay0 = "#6c7086",
+    peach = "#fab387",
+}
+
+local function hex(group, attr)
+    local ok, h = pcall(vim.api.nvim_get_hl, 0, { name = group, link = false })
+    if ok and h and h[attr] then
+        return string.format("#%06x", h[attr])
+    end
+    return nil
+end
+
+-- Mix two "#rrggbb" by t (0 = a, 1 = b).
+local function blend(a, b, t)
+    local function rgb(h)
+        return tonumber(h:sub(2, 3), 16), tonumber(h:sub(4, 5), 16), tonumber(h:sub(6, 7), 16)
+    end
+    local ar, ag, ab = rgb(a)
+    local br, bg, bb = rgb(b)
+    return string.format(
+        "#%02x%02x%02x",
+        math.floor(ar + (br - ar) * t + 0.5),
+        math.floor(ag + (bg - ag) * t + 0.5),
+        math.floor(ab + (bb - ab) * t + 0.5)
+    )
+end
+
+-- Derive pill colours from the active colorscheme. The one thing every theme
+-- defines predictably is Normal (bg + fg); the "raised surface" for the active
+-- pill is just Normal bg nudged a little toward Normal fg. This stays in-theme
+-- for any colorscheme and is never a loud accent (TabLineSel/Visual bg are
+-- theme-dependent — some themes make them a saturated highlight, wrong for a
+-- pill). Re-derived on every ColorScheme via the setup() call at the bottom.
 local function palette()
-    local ok, p = pcall(function() return require("catppuccin.palettes").get_palette() end)
-    return (ok and type(p) == "table") and p or {}
+    local nbg = hex("Normal", "bg") or FALLBACK.mantle
+    local nfg = hex("Normal", "fg") or FALLBACK.text
+    return {
+        mantle = nbg, -- editor backdrop
+        text = nfg,
+        surface0 = blend(nbg, nfg, 0.13), -- active-tab pill: subtle raise
+        overlay1 = hex("Comment", "fg") or blend(nbg, nfg, 0.45),
+        peach = hex("DiagnosticWarn", "fg") or hex("WarningMsg", "fg") or FALLBACK.peach,
+    }
 end
 
 local function build_opts()
     local p = palette()
-    local pill = p.surface0 or "#313244" -- active-tab pill, darker than the tmux blue
-    local ghost = p.mantle or "#181825" -- ~invisible over the dark backdrop
+    local pill = p.surface0
+    local ghost = p.mantle -- inactive caps must equal the editor backdrop exactly
     local text = p.text or "#cdd6f4"
-    local dim = p.overlay0 or "#6c7086"
+    local dim = p.overlay1 or p.overlay0 or "#6c7086"
     local peach = p.peach or "#fab387"
+    -- Inactive tabs get their own rounded pill too, a subtle one: backdrop
+    -- blended ~40% toward the active pill so it reads as a chip, not a slab.
+    local pill_dim = blend(ghost, pill, 0.4)
     local selected = { bg = pill, fg = text }
     return {
         options = {
@@ -92,56 +155,67 @@ local function build_opts()
         },
         -- Transparent bar; this file owns every BufferLine bg (autocmds no
         -- longer strips ^BufferLine, so the selected pill bg survives).
-        -- Inactive caps use the "ghost" shade — close enough to the backdrop
-        -- to read as no pill at all.
+        -- Inactive caps: fg AND bg both = "ghost" (the real backdrop shade). The
+        -- cap is a solid arc glyph; with bg = NONE its antialiased edge blends
+        -- toward transparent and leaves a faint outline on every inactive tab
+        -- ("darker sides"). Filling the cap cell with the backdrop colour makes
+        -- the glyph vanish. (Selected caps keep bg = NONE so the pill's outer
+        -- corners stay round — see the indicator-patch note at the top.)
+        --
+        -- Inactive tabs are now their own `pill_dim` chip. Their caps
+        -- (separator / separator_visible) draw the arc glyph in `pill_dim` with
+        -- bg = NONE, so the outer corners stay transparent and read as round —
+        -- same trick as separator_selected. The indicator patch at the top
+        -- stamps the buffer highlight (pill_dim) onto the notch cell for these
+        -- too, so the chip is gap-free.
         highlights = {
             fill = { bg = "NONE" },
-            background = { bg = "NONE", fg = dim },
-            buffer_visible = { bg = "NONE", fg = dim },
+            background = { bg = pill_dim, fg = dim },
+            buffer_visible = { bg = pill_dim, fg = dim },
             buffer_selected = { bg = pill, fg = text, bold = true, italic = false },
-            separator = { bg = "NONE", fg = ghost },
-            separator_visible = { bg = "NONE", fg = ghost },
+            separator = { bg = "NONE", fg = pill_dim },
+            separator_visible = { bg = "NONE", fg = pill_dim },
             separator_selected = { bg = "NONE", fg = pill },
-            close_button = { bg = "NONE", fg = dim },
-            close_button_visible = { bg = "NONE", fg = dim },
+            close_button = { bg = pill_dim, fg = dim },
+            close_button_visible = { bg = pill_dim, fg = dim },
             close_button_selected = selected,
-            modified = { bg = "NONE", fg = peach },
-            modified_visible = { bg = "NONE", fg = peach },
+            modified = { bg = pill_dim, fg = peach },
+            modified_visible = { bg = pill_dim, fg = peach },
             modified_selected = { bg = pill, fg = peach },
-            duplicate = { bg = "NONE", fg = dim, italic = true },
-            duplicate_visible = { bg = "NONE", fg = dim, italic = true },
+            duplicate = { bg = pill_dim, fg = dim, italic = true },
+            duplicate_visible = { bg = pill_dim, fg = dim, italic = true },
             duplicate_selected = { bg = pill, fg = dim, italic = true },
-            indicator_visible = { bg = "NONE" },
+            indicator_visible = { bg = pill_dim },
             indicator_selected = selected,
-            pick = { bg = "NONE", bold = true },
-            pick_visible = { bg = "NONE", bold = true },
+            pick = { bg = pill_dim, bold = true },
+            pick_visible = { bg = pill_dim, bold = true },
             pick_selected = { bg = pill, bold = true },
-            diagnostic = { bg = "NONE" },
-            diagnostic_visible = { bg = "NONE" },
+            diagnostic = { bg = pill_dim },
+            diagnostic_visible = { bg = pill_dim },
             diagnostic_selected = { bg = pill },
-            error = { bg = "NONE", fg = dim },
-            error_visible = { bg = "NONE", fg = dim },
+            error = { bg = pill_dim, fg = dim },
+            error_visible = { bg = pill_dim, fg = dim },
             error_selected = selected,
-            error_diagnostic = { bg = "NONE", fg = dim },
-            error_diagnostic_visible = { bg = "NONE", fg = dim },
+            error_diagnostic = { bg = pill_dim, fg = dim },
+            error_diagnostic_visible = { bg = pill_dim, fg = dim },
             error_diagnostic_selected = selected,
-            warning = { bg = "NONE", fg = dim },
-            warning_visible = { bg = "NONE", fg = dim },
+            warning = { bg = pill_dim, fg = dim },
+            warning_visible = { bg = pill_dim, fg = dim },
             warning_selected = selected,
-            warning_diagnostic = { bg = "NONE", fg = dim },
-            warning_diagnostic_visible = { bg = "NONE", fg = dim },
+            warning_diagnostic = { bg = pill_dim, fg = dim },
+            warning_diagnostic_visible = { bg = pill_dim, fg = dim },
             warning_diagnostic_selected = selected,
-            info = { bg = "NONE", fg = dim },
-            info_visible = { bg = "NONE", fg = dim },
+            info = { bg = pill_dim, fg = dim },
+            info_visible = { bg = pill_dim, fg = dim },
             info_selected = selected,
-            info_diagnostic = { bg = "NONE", fg = dim },
-            info_diagnostic_visible = { bg = "NONE", fg = dim },
+            info_diagnostic = { bg = pill_dim, fg = dim },
+            info_diagnostic_visible = { bg = pill_dim, fg = dim },
             info_diagnostic_selected = selected,
-            hint = { bg = "NONE", fg = dim },
-            hint_visible = { bg = "NONE", fg = dim },
+            hint = { bg = pill_dim, fg = dim },
+            hint_visible = { bg = pill_dim, fg = dim },
             hint_selected = selected,
-            hint_diagnostic = { bg = "NONE", fg = dim },
-            hint_diagnostic_visible = { bg = "NONE", fg = dim },
+            hint_diagnostic = { bg = pill_dim, fg = dim },
+            hint_diagnostic_visible = { bg = pill_dim, fg = dim },
             hint_diagnostic_selected = selected,
         },
     }
@@ -154,7 +228,9 @@ require("bufferline").setup(build_opts())
 -- everything turns grey. Re-init on every ColorScheme to refresh (rebuilds the
 -- palette-derived pill colors too).
 vim.api.nvim_create_autocmd("ColorScheme", {
-    callback = function() require("bufferline").setup(build_opts()) end,
+    callback = function()
+        require("bufferline").setup(build_opts())
+    end,
 })
 
 -- Shift-L / Shift-H to switch tabs
@@ -169,12 +245,12 @@ local function close_buffer_keep_layout()
     local bufnr = vim.api.nvim_get_current_buf()
 
     local alt = vim.fn.bufnr("#")
-    if alt < 1 or alt == bufnr or not vim.api.nvim_buf_is_valid(alt)
-       or not vim.bo[alt].buflisted then
+    if alt < 1 or alt == bufnr or not vim.api.nvim_buf_is_valid(alt) or not vim.bo[alt].buflisted then
         alt = -1
         for _, b in ipairs(vim.api.nvim_list_bufs()) do
             if b ~= bufnr and vim.bo[b].buflisted and vim.bo[b].buftype == "" then
-                alt = b; break
+                alt = b
+                break
             end
         end
     end

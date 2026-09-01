@@ -22,6 +22,7 @@ require("mason-tool-installer").setup({
     "js-debug-adapter",
     "csharpier",
     "stylua",
+    "prettier", -- json + markdown formatting (conform.lua)
   },
   run_on_start = true,
   auto_update = false,

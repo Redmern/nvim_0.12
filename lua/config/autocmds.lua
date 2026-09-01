@@ -22,13 +22,28 @@ local omarchy_to_nvim = {
 
 local fallback = { colorscheme = "catppuccin", bg = "dark" }
 
+-- Omarchy's "quattro" upgrade (2026-08-23) relocated live state from
+-- ~/.config/omarchy/current (now gone) to ~/.local/state/omarchy/current.
+-- Reading the old path fails SILENTLY -> nvim sat on its catppuccin fallback
+-- for every theme. Probe new-then-old. Returns "" off Omarchy / on Windows
+-- (os_homedir() is portable; os.getenv("HOME") is nil on Windows).
+local function omarchy_current()
+    local home = vim.uv.os_homedir() or ""
+    for _, base in ipairs({ home .. "/.local/state/omarchy/current", home .. "/.config/omarchy/current" }) do
+        if vim.uv.fs_stat(base) then
+            return base
+        end
+    end
+    return ""
+end
+
 local applied_theme -- last Omarchy theme name we actually applied
 local function sync_os_theme()
     -- os.getenv("HOME") is nil on Windows; concatenating it threw and aborted the
     -- rest of init.lua (config.keymaps never loaded). os_homedir() is portable and
     -- the io.open simply misses on any box without Omarchy, landing on `fallback`.
-    local home = vim.uv.os_homedir() or ""
-    local handle = io.open(home .. "/.config/omarchy/current/theme.name", "r")
+    local base = omarchy_current()
+    local handle = base ~= "" and io.open(base .. "/theme.name", "r") or nil
     local name = handle and handle:read("*l") or ""
     if handle then
         handle:close()
@@ -71,7 +86,10 @@ vim.api.nvim_create_user_command("ThemeReload", sync_os_theme, { desc = "Re-read
 -- file may be replaced via rename, breaking the original fs_event handle.
 -- Skipped when the file doesn't exist (any non-Omarchy box, e.g. Windows):
 -- fs_event:start on a missing path errors, and there is nothing to watch.
-local theme_file = (vim.uv.os_homedir() or "") .. "/.config/omarchy/current/theme.name"
+local theme_file = (function()
+    local base = omarchy_current()
+    return base ~= "" and (base .. "/theme.name") or ""
+end)()
 local fs_handle
 local function watch_theme_file()
     if vim.fn.filereadable(theme_file) ~= 1 then
@@ -110,6 +128,23 @@ style_line_numbers()
 vim.api.nvim_create_autocmd("ColorScheme", { callback = style_line_numbers })
 
 -- ---------------------------------------------------------------------------
+-- Window separator (the │ between splits, e.g. neo-tree | editor).
+-- Many colorschemes `link WinSeparator Normal`, which paints the glyph in the
+-- foreground colour -- a bright white hairline. And when an Omarchy theme
+-- switch half-applies (colorscheme not installed -> partial :hi clear), the
+-- separator is one of the first things to go bright. Pin it to a dim grey,
+-- re-applied on ColorScheme like the line numbers above.
+-- ---------------------------------------------------------------------------
+local function style_separators()
+  for _, g in ipairs({ "WinSeparator", "VertSplit" }) do
+    vim.api.nvim_set_hl(0, g, { fg = "#313244", bg = "NONE" })  -- dim, no fill
+  end
+end
+
+style_separators()
+vim.api.nvim_create_autocmd("ColorScheme", { callback = style_separators })
+
+-- ---------------------------------------------------------------------------
 -- Comment coloring for yaml (and the bash injected into its `script:` blocks).
 -- nvim-treesitter's yaml injections.scm runs the bash parser over run/script
 -- block scalars, so `#` lines in an Azure Pipelines `script: |` are
@@ -139,8 +174,8 @@ vim.api.nvim_create_autocmd("ColorScheme", { callback = style_comments })
 local function read_omarchy_accent()
     -- os_homedir() not os.getenv("HOME"): the latter is nil on Windows and the
     -- concat aborted init.lua. Off Omarchy the open just misses -> fallback accent.
-    local home = vim.uv.os_homedir() or ""
-    local f = io.open(home .. "/.config/omarchy/current/theme/ghostty.conf", "r")
+    local base = omarchy_current()
+    local f = base ~= "" and io.open(base .. "/theme/ghostty.conf", "r") or nil
     if f then
         for line in f:lines() do
             local hex = line:match("^palette%s*=%s*4=#?(%x%x%x%x%x%x)")

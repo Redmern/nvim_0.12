@@ -5,8 +5,11 @@ require("conform").setup({
         -- unrelated lines. Falling through to lsp_fallback lets roslyn_ls format --
         -- the same Roslyn formatter + .editorconfig teammates' VS/Rider use, and it
         -- does not rewrap lines.
-        lua  = { "stylua" },
-        json = { "prettier" },
+        lua      = { "stylua" },
+        json     = { "prettier" },
+        -- markdown: prettier reflows tables / list markers / wraps. Also what
+        -- <leader>mt (util.markdown.format_table) range-formats.
+        markdown = { "prettier" },
     },
     -- Surface format failures instead of silently skipping. Conform's
     -- format_on_save can be a function returning the args table; we use the
