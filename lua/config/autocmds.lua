@@ -326,11 +326,13 @@ local function build_dim_ns()
             pcall(vim.api.nvim_set_hl, dim_ns, name, copy)
         end
     end
-    -- the selection must stay bright inside the dim namespace (overwrites the
-    -- darkened copy of the theme's Visual made by the loop above): bold white
-    -- text on the theme's own (undimmed) Visual background
+    -- selection style inside the dim namespace (overwrites the darkened copy
+    -- of the theme's Visual made by the loop above): NO fg, so the text keeps
+    -- its own colors under the highlight — the theme's undimmed Visual bg +
+    -- bold marks the selection. (The colors under the bg are the namespace's
+    -- dimmed ones; Visual can't selectively undim per-token fg.)
     local visual = vim.api.nvim_get_hl(0, { name = "Visual", link = false })
-    vim.api.nvim_set_hl(dim_ns, "Visual", { fg = "#ffffff", bg = visual.bg or read_omarchy_accent(), bold = true })
+    vim.api.nvim_set_hl(dim_ns, "Visual", { bg = visual.bg or read_omarchy_accent(), bold = true })
     dim_ns_built = true
 end
 

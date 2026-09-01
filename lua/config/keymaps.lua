@@ -6,6 +6,9 @@ vim.keymap.set("x", "K", ":m '<-2<CR>gv=gv", { desc = "Move selection up" })
 vim.keymap.set("x", ">", ">gv", { desc = "Indent and keep selection" })
 vim.keymap.set("x", "<", "<gv", { desc = "Dedent and keep selection" })
 
+-- Visual-mode only; normal-mode <leader>ca (ClaudeCodeAdd) lives in plugins/claudecode.lua
+vim.keymap.set("x", "<leader>ca", function() require("util.claude-inline").ask() end, { desc = "Claude: edit selection inline" })
+
 vim.keymap.set("n", "<leader>nn", function() require("util.weekly-notes").open_current() end,   { desc = "Notes: open this week" })
 vim.keymap.set("n", "<leader>nN", function() require("util.weekly-notes").open_offset(1) end,   { desc = "Notes: open next week" })
 vim.keymap.set("n", "<leader>np", function() require("util.weekly-notes").open_offset(-1) end,  { desc = "Notes: open previous week" })
