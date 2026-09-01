@@ -7,8 +7,10 @@ require("conform").setup({
         -- does not rewrap lines.
         lua      = { "stylua" },
         json     = { "prettier" },
-        -- markdown: prettier reflows tables / list markers / wraps. Also what
-        -- <leader>mt (util.markdown.format_table) range-formats.
+        -- markdown: prettier reflows tables / list markers / wraps. Kept for
+        -- MANUAL formatting only (<leader>mt table reflow, <leader>lf) —
+        -- format_on_save below skips markdown, the reflow churn is unwanted
+        -- on every save.
         markdown = { "prettier" },
     },
     -- Surface format failures instead of silently skipping. Conform's
@@ -16,6 +18,7 @@ require("conform").setup({
     -- callback form to get a post-format hook.
     format_on_save = function(bufnr)
         if vim.g.disable_autoformat or vim.b[bufnr].disable_autoformat then return end
+        if vim.bo[bufnr].filetype == "markdown" then return end
         return { timeout_ms = 1000, lsp_fallback = true }, function(err)
             if err then
                 vim.notify("conform: " .. err, vim.log.levels.WARN, { title = "format on save" })
