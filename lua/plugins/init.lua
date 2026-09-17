@@ -24,6 +24,7 @@ local modules = {
     "harpoon",
     "bufferline",
     "lualine",
+    "modicator",
     "lazygit",
     "gitsigns",
     "diffview",
@@ -32,7 +33,10 @@ local modules = {
     "persistence",
     "conform",
     "flash",
+    "treesj",
+    "tabout", -- after blink: blink's <Tab> "fallback" step hands off to tabout's global map
     "tiny-inline-diagnostic",
+    "tiny-code-action",
     "indent-blankline",
     "colorizer",
     "render-markdown",

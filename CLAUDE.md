@@ -39,7 +39,8 @@ Adding a plugin = three edits:
 - Mason registers the `crashdummyy` registry, which hosts the `roslyn` package. `lua_ls` + `bicep` go through `mason-lspconfig`; **C# does not** — the `roslyn` binary is installed (and version-**pinned**, currently `5.8.0-...`) by `mason-tool-installer` in `dap.lua`. Bump it deliberately, not on every `:MasonUpdate`.
 - The C# server is started by `vim.lsp.enable("roslyn_ls")` with config via `vim.lsp.config("roslyn_ls", ...)` directly in `lsp.lua` — **`roslyn.nvim` is not used**; `lua/plugins/roslyn.lua` is a commented-out stub kept as a breadcrumb. Razor LSP stays off (current binary crashes on the razor args); treesitter still highlights `.razor`.
 - LSP capabilities from blink.cmp are pushed via `vim.lsp.config("*", ...)` **before** any `vim.lsp.enable()` call — that's the only place that gets the timing right.
-- Global `LspAttach` autocmd installs `gd`/`gr`/`K`/`<leader>l{r,a,d,h}` and toggles inlay hints when the server supports them.
+- `jsonls` + `yamlls` (via `mason-lspconfig`) get their schema lists from `b0o/SchemaStore.nvim` (library-only plugin, no `lua/plugins/` module — configured inline in `lsp.lua`). Files match schemas by filename, so `package.json`, GitHub workflows, `docker-compose.yml` etc. validate without a `$schema` key. yamlls' built-in store is disabled so only the SchemaStore list is used.
+- Global `LspAttach` autocmd installs `gd`/`gr`/`K`/`<leader>l{r,a,d,h}` and toggles inlay hints when the server supports them. `<leader>la` (normal + visual) goes through `tiny-code-action.nvim` (`lua/plugins/tiny-code-action.lua`: `buffer` picker with inline diff preview, hotkeys, `vim` diff backend) and falls back to `vim.lsp.buf.code_action` if the plugin is missing.
 - Pull + push diagnostic handlers are wrapped to drop `IDE0005` / `CS8019` (noisy "unused using" hints). Add codes to `SILENCED_DIAG_CODES` to silence more.
 
 **Formatting** (`lua/plugins/conform.lua`): `stylua` (lua), `prettier` (json, markdown); C# falls through to `lsp_fallback` (roslyn) on purpose — see the comment. Format-on-save, **except markdown** (prettier's reflow churn is unwanted on save; markdown formats manually via `<leader>lf` / `<leader>mt` only). `<leader>lf` formats manually. `:FormatDisable[!]` / `:FormatEnable` toggle the save hook globally (or per-buffer with `!`). `prettier` is installed by `mason-tool-installer` in `dap.lua`.
@@ -81,6 +82,10 @@ Adding a plugin = three edits:
 - `vim.o.equalalways = false` globally.
 - neo-tree + claudecode + opencode get `winfixwidth = true` so the central code area is the only one that resizes when buffers open/close.
 - `:bd` / `:bdelete` are aliased to `:BD`, which is layout-preserving (switches to another buffer instead of closing the window).
+
+**Treesitter editing helpers:**
+- `lua/plugins/treesj.lua` — `treesj` split/join on `<leader>j` (`<leader>J` recursive). Default keymaps off (they collide with the `<leader>m` Markdown and `<leader>s` Search groups). Ships no C# preset, so `lsp`-independent `c_sharp` node presets (`argument_list`, `parameter_list`, `initializer_expression`, `block`) are defined in that file.
+- `lua/plugins/tabout.lua` — insert `<Tab>`/`<S-Tab>` jump out of the enclosing quote/bracket. Coexists with blink because blink's `super-tab` keymap ends in `"fallback"`, which runs tabout's global `<Tab>` map: menu accept → snippet jump → tabout → plain tab. Module loads after `blink` in `init.lua`.
 
 **Treesitter parser list** lives in `lua/util/treesitter-parsers.lua` and is consumed by both `plugins/treesitter.lua` (startup install) and `bootstrap.sh` (fresh install). Don't add a new parser in two places.
 

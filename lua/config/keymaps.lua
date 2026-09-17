@@ -58,6 +58,15 @@ vim.api.nvim_create_autocmd("FileType", {
         map("n", "<leader>mr", "<cmd>AutolistRecalculate<cr>", "Markdown: renumber list")
         map("n", "<leader>mc", require("autolist").cycle_next_dr, "Markdown: cycle list marker")
 
+        -- soft-wrap at word boundaries (global wrap=false elsewhere); breakindent
+        -- keeps wrapped lines aligned under the first char instead of col 0
+        vim.wo.wrap = true
+        vim.wo.linebreak = true
+        vim.wo.breakindent = true
+        map("n", "<leader>mw", function()
+            vim.wo.wrap = not vim.wo.wrap
+        end, "Markdown: toggle line wrap")
+
         -- fold by heading (treesitter); start unfolded
         vim.wo.foldmethod = "expr"
         vim.wo.foldexpr = "v:lua.vim.treesitter.foldexpr()"

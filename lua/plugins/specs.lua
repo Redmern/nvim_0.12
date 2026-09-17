@@ -3,15 +3,15 @@
 -- repositories.
 return {
     -- Themes (active one is picked by Omarchy sync in lua/config/autocmds.lua)
-    { src = "https://github.com/catppuccin/nvim",                          name = "catppuccin" },
+    { src = "https://github.com/catppuccin/nvim", name = "catppuccin" },
     { src = "https://github.com/folke/tokyonight.nvim" },
     { src = "https://github.com/rebelot/kanagawa.nvim" },
-    { src = "https://github.com/rose-pine/neovim",                         name = "rose-pine" },
+    { src = "https://github.com/rose-pine/neovim", name = "rose-pine" },
     { src = "https://github.com/ellisonleao/gruvbox.nvim" },
     { src = "https://github.com/sainnhe/everforest" },
     { src = "https://github.com/shaunsingh/nord.nvim" },
     { src = "https://github.com/Mofiqul/dracula.nvim" },
-    { src = "https://github.com/gthelding/monokai-pro.nvim",               name = "monokai-pro" },
+    { src = "https://github.com/gthelding/monokai-pro.nvim", name = "monokai-pro" },
 
     -- File explorer (buffer-as-directory) + traditional sidebar tree
     { src = "https://github.com/stevearc/oil.nvim" },
@@ -20,7 +20,7 @@ return {
     { src = "https://github.com/folke/which-key.nvim" },
 
     -- Syntax (main branch — master is archived, see treesitter.lua for why)
-    { src = "https://github.com/nvim-treesitter/nvim-treesitter",          version = "main" },
+    { src = "https://github.com/nvim-treesitter/nvim-treesitter", version = "main" },
     { src = "https://github.com/nvim-treesitter/nvim-treesitter-textobjects", version = "main" },
 
     -- LSP + tooling
@@ -28,6 +28,8 @@ return {
     { src = "https://github.com/mason-org/mason.nvim" },
     { src = "https://github.com/mason-org/mason-lspconfig.nvim" },
     { src = "https://github.com/folke/lazydev.nvim" },
+    -- JSON/YAML schema catalog (library only, consumed in lsp.lua by jsonls/yamlls)
+    { src = "https://github.com/b0o/SchemaStore.nvim" },
 
     -- Debugger
     { src = "https://github.com/mfussenegger/nvim-dap" },
@@ -56,7 +58,7 @@ return {
     { src = "https://github.com/dmtrKovalenko/fff.nvim" },
 
     -- Harpoon (v2) — pin a handful of files, jump with <leader>1..4
-    { src = "https://github.com/ThePrimeagen/harpoon",                     version = "harpoon2" },
+    { src = "https://github.com/ThePrimeagen/harpoon", version = "harpoon2" },
 
     -- UI: tabs, status, icons, indent guides, hex-colour preview, markdown render
     { src = "https://github.com/akinsho/bufferline.nvim" },
@@ -74,6 +76,7 @@ return {
     { src = "https://github.com/brianhuster/live-preview.nvim" },
     { src = "https://github.com/HakonHarnes/img-clip.nvim" },
     { src = "https://github.com/gaoDean/autolist.nvim" },
+    { src = "https://github.com/mawkler/modicator.nvim" },
 
     -- Git
     { src = "https://github.com/kdheepak/lazygit.nvim" },
@@ -92,6 +95,9 @@ return {
 
     -- Motion / navigation
     { src = "https://github.com/folke/flash.nvim" },
+    -- Treesitter-based editing: split/join blocks, tab out of brackets/quotes
+    { src = "https://github.com/Wansmer/treesj" },
+    { src = "https://github.com/abecodes/tabout.nvim" },
     -- smart-splits over vim-tmux-navigator: it also hands off to WezTerm (via
     -- `wezterm cli activate-pane-direction`), so the same C-h/j/k/l crosses the
     -- split edge on Windows/WezTerm as well as inside tmux on WSL.
@@ -101,8 +107,9 @@ return {
     -- mini.* umbrella — single repo, multiple modules (ai, pairs, comment, surround)
     { src = "https://github.com/echasnovski/mini.nvim" },
 
-    -- Inline diagnostics on cursor line
+    -- Inline diagnostics on cursor line + code-action picker with diff preview
     { src = "https://github.com/rachartier/tiny-inline-diagnostic.nvim" },
+    { src = "https://github.com/rachartier/tiny-code-action.nvim" },
 
     -- Floating cmdline + prettier notifications
     { src = "https://github.com/folke/noice.nvim" },

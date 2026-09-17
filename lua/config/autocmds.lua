@@ -116,12 +116,12 @@ end
 watch_theme_file()
 
 -- ---------------------------------------------------------------------------
--- Line-number coloring (muted for inactive lines, bold accent for current)
+-- Line-number coloring (muted for inactive lines). CursorLineNr is owned by
+-- modicator.nvim (plugins/modicator.lua) — it recolors it per mode.
 -- Re-applied on ColorScheme so it survives Omarchy theme switches.
 -- ---------------------------------------------------------------------------
 local function style_line_numbers()
     vim.api.nvim_set_hl(0, "LineNr", { fg = "#6c7086" }) -- subtle gray
-    vim.api.nvim_set_hl(0, "CursorLineNr", { fg = "#f9e2af", bold = true }) -- bright yellow + bold
 end
 
 style_line_numbers()

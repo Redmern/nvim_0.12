@@ -74,7 +74,7 @@ require("mason").setup({
 -- C# does NOT go here — the Roslyn server is enabled/configured directly
 -- below via vim.lsp.enable/vim.lsp.config (no roslyn.nvim).
 require("mason-lspconfig").setup({
-    ensure_installed = { "lua_ls", "bicep", "marksman" },
+    ensure_installed = { "lua_ls", "bicep", "marksman", "jsonls", "yamlls" },
     automatic_installation = true,
 })
 
@@ -89,6 +89,32 @@ end
 vim.lsp.enable("roslyn_ls")
 vim.lsp.enable("bicep")
 vim.lsp.enable("marksman") -- markdown: doc symbols, link diagnostics, heading rename → link fixups
+
+-- JSON / YAML with the SchemaStore catalog (package.json, tsconfig, GitHub
+-- workflows, docker-compose, appsettings, ...). Files are matched to schemas
+-- by filename, so validation + completion work without a `$schema` key.
+-- yamlls' own built-in store is turned off so the two lists don't compete.
+local ok_schema, schemastore = pcall(require, "schemastore")
+if ok_schema then
+    vim.lsp.config("jsonls", {
+        settings = {
+            json = {
+                schemas = schemastore.json.schemas(),
+                validate = { enable = true },
+            },
+        },
+    })
+    vim.lsp.config("yamlls", {
+        settings = {
+            yaml = {
+                schemaStore = { enable = false, url = "" },
+                schemas = schemastore.yaml.schemas(),
+            },
+        },
+    })
+end
+vim.lsp.enable("jsonls")
+vim.lsp.enable("yamlls")
 
 vim.lsp.config("roslyn_ls", {
     filetypes = { "cs" }, -- Razor LSP stays off: current roslyn binary crashes on razor args (treesitter still highlights .razor)
@@ -127,9 +153,17 @@ vim.api.nvim_create_autocmd("LspAttach", {
         map("gr", vim.lsp.buf.references, "References")
         map("K", vim.lsp.buf.hover, "Hover")
         map("<leader>lr", vim.lsp.buf.rename, "Rename")
-        map("<leader>la", vim.lsp.buf.code_action, "Code action")
+        -- tiny-code-action (diff-preview picker); plain vim.ui.select if it's missing
+        vim.keymap.set({ "n", "x" }, "<leader>la", function()
+            local ok, tca = pcall(require, "tiny-code-action")
+            if ok then
+                return tca.code_action()
+            end
+            vim.lsp.buf.code_action()
+        end, { buffer = args.buf, desc = "Code action" })
         map("<leader>ld", vim.diagnostic.open_float, "Line diagnostics")
         map("<leader>lk", vim.lsp.buf.signature_help, "Signature help") -- <C-s> in insert mode does the same, but is XOFF in some terminals
+        map("<leader>li", vim.lsp.buf.hover, "help") -- <C-s> in insert mode does the same, but is XOFF in some terminals
         map("<leader>lh", function()
             vim.lsp.inlay_hint.enable(not vim.lsp.inlay_hint.is_enabled({ bufnr = args.buf }), { bufnr = args.buf })
         end, "Toggle inlay hints")

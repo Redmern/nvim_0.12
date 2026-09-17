@@ -3,29 +3,29 @@ local dap = require("dap")
 local dapui = require("dapui")
 
 -- Sign-column symbols for breakpoints / current execution (replaces default "B")
-vim.fn.sign_define("DapBreakpoint",          { text = "●", texthl = "DiagnosticError", linehl = "", numhl = "" })
-vim.fn.sign_define("DapBreakpointCondition", { text = "◆", texthl = "DiagnosticWarn",  linehl = "", numhl = "" })
-vim.fn.sign_define("DapLogPoint",            { text = "◆", texthl = "DiagnosticInfo",  linehl = "", numhl = "" })
-vim.fn.sign_define("DapStopped",             { text = "▶", texthl = "DiagnosticOk",    linehl = "Visual", numhl = "" })
-vim.fn.sign_define("DapBreakpointRejected",  { text = "○", texthl = "DiagnosticHint",  linehl = "", numhl = "" })
+vim.fn.sign_define("DapBreakpoint", { text = "●", texthl = "DiagnosticError", linehl = "", numhl = "" })
+vim.fn.sign_define("DapBreakpointCondition", { text = "◆", texthl = "DiagnosticWarn", linehl = "", numhl = "" })
+vim.fn.sign_define("DapLogPoint", { text = "◆", texthl = "DiagnosticInfo", linehl = "", numhl = "" })
+vim.fn.sign_define("DapStopped", { text = "▶", texthl = "DiagnosticOk", linehl = "Visual", numhl = "" })
+vim.fn.sign_define("DapBreakpointRejected", { text = "○", texthl = "DiagnosticHint", linehl = "", numhl = "" })
 
 -- ---------------------------------------------------------------------------
 -- Mason-managed binaries (netcoredbg for .NET, js-debug-adapter for Blazor WASM)
 -- ---------------------------------------------------------------------------
 require("mason-tool-installer").setup({
-  ensure_installed = {
-    -- Roslyn pinned: random upstream version bumps have a history of
-    -- changing diagnostic output (IDE0005 surfacing, missing code-fixes,
-    -- razor arg crashes). Bump deliberately, not on every `:MasonUpdate`.
-    { "roslyn", version = "5.8.0-1.26262.10" },
-    "netcoredbg",
-    "js-debug-adapter",
-    "csharpier",
-    "stylua",
-    "prettier", -- json + markdown formatting (conform.lua)
-  },
-  run_on_start = true,
-  auto_update = false,
+    ensure_installed = {
+        -- Roslyn pinned: random upstream version bumps have a history of
+        -- changing diagnostic output (IDE0005 surfacing, missing code-fixes,
+        -- razor arg crashes). Bump deliberately, not on every `:MasonUpdate`.
+        { "roslyn", version = "5.8.0-1.26262.10" },
+        "netcoredbg",
+        "js-debug-adapter",
+        "csharpier",
+        "stylua",
+        "prettier", -- json + markdown formatting (conform.lua)
+    },
+    run_on_start = true,
+    auto_update = false,
 })
 
 -- ---------------------------------------------------------------------------
@@ -40,58 +40,64 @@ require("mason-tool-installer").setup({
 -- verbatim and dies with "bad argument #1 to 'spawn' (string expected, got
 -- function)" at dap/session.lua:1608.
 local function netcoredbg_path()
-  local mason = vim.fn.stdpath("data") .. "/mason"
+    local mason = vim.fn.stdpath("data") .. "/mason"
 
-  -- Windows first: mason/bin/netcoredbg.cmd is a batch shim, and nvim-dap hands
-  -- `command` straight to uv.spawn -> CreateProcess, which cannot execute a .cmd
-  -- (ENOENT). mason/bin is on PATH, so exepath() would find that shim — check
-  -- the real exe inside the package before falling through to it.
-  if vim.fn.has("win32") == 1 then
-    local exe = mason .. "/packages/netcoredbg/netcoredbg/netcoredbg.exe"
-    if vim.fn.filereadable(exe) == 1 then return exe end
-  end
+    -- Windows first: mason/bin/netcoredbg.cmd is a batch shim, and nvim-dap hands
+    -- `command` straight to uv.spawn -> CreateProcess, which cannot execute a .cmd
+    -- (ENOENT). mason/bin is on PATH, so exepath() would find that shim — check
+    -- the real exe inside the package before falling through to it.
+    if vim.fn.has("win32") == 1 then
+        local exe = mason .. "/packages/netcoredbg/netcoredbg/netcoredbg.exe"
+        if vim.fn.filereadable(exe) == 1 then
+            return exe
+        end
+    end
 
-  local exe = vim.fn.exepath("netcoredbg")
-  if exe ~= "" then return exe end
-  local shim = mason .. "/bin/netcoredbg"
-  if vim.fn.executable(shim) == 1 then return shim end
-  return nil
+    local exe = vim.fn.exepath("netcoredbg")
+    if exe ~= "" then
+        return exe
+    end
+    local shim = mason .. "/bin/netcoredbg"
+    if vim.fn.executable(shim) == 1 then
+        return shim
+    end
+    return nil
 end
 
 local function netcoredbg(callback, _config)
-  local cmd = netcoredbg_path()
-  if not cmd then
-    vim.notify("netcoredbg not found — run :MasonInstall netcoredbg", vim.log.levels.ERROR)
-    return
-  end
-  callback({
-    type = "executable",
-    command = cmd,
-    args = { "--interpreter=vscode" },
-  })
+    local cmd = netcoredbg_path()
+    if not cmd then
+        vim.notify("netcoredbg not found — run :MasonInstall netcoredbg", vim.log.levels.ERROR)
+        return
+    end
+    callback({
+        type = "executable",
+        command = cmd,
+        args = { "--interpreter=vscode" },
+    })
 end
 
-dap.adapters.coreclr    = netcoredbg
+dap.adapters.coreclr = netcoredbg
 dap.adapters.netcoredbg = netcoredbg
 vim.opt.switchbuf:append("useopen")
 
 dap.configurations.cs = {
-  {
-    type = "coreclr",
-    name = "Launch (select DLL)",
-    request = "launch",
-    console = "integratedTerminal",
-    program = function()
-      return vim.fn.input("Path to DLL: ", vim.fn.getcwd() .. "/bin/Debug/", "file")
-    end,
-    stopAtEntry = false,
-  },
-  {
-    type = "coreclr",
-    name = "Attach",
-    request = "attach",
-    processId = require("dap.utils").pick_process,
-  },
+    {
+        type = "coreclr",
+        name = "Launch (select DLL)",
+        request = "launch",
+        console = "integratedTerminal",
+        program = function()
+            return vim.fn.input("Path to DLL: ", vim.fn.getcwd() .. "/bin/Debug/", "file")
+        end,
+        stopAtEntry = false,
+    },
+    {
+        type = "coreclr",
+        name = "Attach",
+        request = "attach",
+        processId = require("dap.utils").pick_process,
+    },
 }
 
 -- Launch terminal opens as a bottom split (15 rows)
@@ -102,92 +108,95 @@ dap.defaults.fallback.terminal_win_cmd = "belowright 15new"
 -- ---------------------------------------------------------------------------
 local mason_path = vim.fn.stdpath("data") .. "/mason"
 dap.adapters["pwa-chrome"] = {
-  type = "server",
-  host = "localhost",
-  port = "${port}",
-  executable = {
-    command = "node",
-    args = {
-      mason_path .. "/packages/js-debug-adapter/js-debug/src/dapDebugServer.js",
-      "${port}",
+    type = "server",
+    host = "localhost",
+    port = "${port}",
+    executable = {
+        command = "node",
+        args = {
+            mason_path .. "/packages/js-debug-adapter/js-debug/src/dapDebugServer.js",
+            "${port}",
+        },
     },
-  },
 }
 
 -- Extra launch config for Blazor WASM (dap-cs already provided the standard C# one).
 -- Run the Blazor project in a terminal first, then attach with this.
 dap.configurations.cs = dap.configurations.cs or {}
 table.insert(dap.configurations.cs, {
-  type = "pwa-chrome",
-  name = "Blazor WASM (Chrome attach @ :9222)",
-  request = "attach",
-  port = 9222,
-  webRoot = "${workspaceFolder}/wwwroot",
-  sourceMapPathOverrides = {
-    ["dotnet://*.dll/*"] = "${workspaceFolder}/*",
-  },
+    type = "pwa-chrome",
+    name = "Blazor WASM (Chrome attach @ :9222)",
+    request = "attach",
+    port = 9222,
+    webRoot = "${workspaceFolder}/wwwroot",
+    sourceMapPathOverrides = {
+        ["dotnet://*.dll/*"] = "${workspaceFolder}/*",
+    },
 })
 
 -- ---------------------------------------------------------------------------
 -- dap-ui layout: side panel (right) + bottom REPL/console
 -- ---------------------------------------------------------------------------
 dapui.setup({
-  floating = { border = "rounded" },
-  layouts = {
-    {
-      position = "right",
-      size = 40,
-      elements = {
-        { id = "scopes",      size = 0.30 },
-        { id = "watches",     size = 0.25 },
-        { id = "stacks",      size = 0.25 },
-        { id = "breakpoints", size = 0.20 },
-      },
+    floating = { border = "rounded" },
+    layouts = {
+        {
+            position = "right",
+            size = 40,
+            elements = {
+                { id = "scopes", size = 0.30 },
+                { id = "watches", size = 0.25 },
+                { id = "stacks", size = 0.25 },
+                { id = "breakpoints", size = 0.20 },
+            },
+        },
+        {
+            position = "bottom",
+            size = 10,
+            elements = {
+                { id = "repl", size = 0.5 },
+                { id = "console", size = 0.5 },
+            },
+        },
     },
-    {
-      position = "bottom",
-      size = 10,
-      elements = {
-        { id = "repl",    size = 0.5 },
-        { id = "console", size = 0.5 },
-      },
-    },
-  },
 })
 
 -- No auto dap-ui open on session start. Use <leader>du to toggle when needed.
 
-
 -- ---------------------------------------------------------------------------
 -- Keymaps
 -- ---------------------------------------------------------------------------
-local map = function(lhs, rhs, desc) vim.keymap.set("n", lhs, rhs, { desc = desc }) end
+local map = function(lhs, rhs, desc)
+    vim.keymap.set("n", lhs, rhs, { desc = desc })
+end
 
 -- Standard function-key shortcuts (match VS Code muscle memory)
-map("<F5>",  dap.continue,          "Continue / Start debug")
-map("<F8>",  dap.step_out,          "Step out")
-map("<F9>",  dap.toggle_breakpoint, "Toggle breakpoint")
-map("<F10>", dap.step_over,         "Step over")
-map("<F11>", dap.step_into,         "Step into")
+map("<F5>", dap.continue, "Continue / Start debug")
+map("<F8>", dap.step_out, "Step out")
+map("<F9>", dap.toggle_breakpoint, "Toggle breakpoint")
+map("<F10>", dap.step_over, "Step over")
+map("<F11>", dap.step_into, "Step into")
 
 -- <leader>d* group — generic DAP
 map("<leader>db", dap.toggle_breakpoint, "Toggle breakpoint")
-map("<leader>dc", dap.continue,          "Continue / Start")
-map("<leader>di", dap.step_into,         "Step into")
-map("<leader>do", dap.step_over,         "Step over")
-map("<leader>dO", dap.step_out,          "Step out")
-map("<leader>du", dapui.toggle,          "Toggle DAP UI")
-map("<leader>dr", dap.repl.toggle,       "Toggle REPL")
-map("<leader>dl", dap.run_last,          "Run last")
+map("<leader>dc", dap.continue, "Continue / Start")
+map("<leader>di", dap.step_into, "Step into")
+map("<leader>do", dap.step_over, "Step over")
+map("<leader>dO", dap.step_out, "Step out")
+map("<leader>du", dapui.toggle, "Toggle DAP UI")
+map("<leader>dr", dap.repl.toggle, "Toggle REPL")
+map("<leader>dl", dap.run_last, "Run last")
 
 -- Peek value: K-like hover popup. <leader>de puts the cursor *inside* the float
 -- (`enter = true`) so the object can be navigated and expanded; <leader>dw is
 -- the quick glance that stays in the buffer and closes on cursor move.
 -- These two were the other way round.
-vim.keymap.set({ "n", "v" }, "<leader>de", function() require("dapui").eval(nil, { enter = true }) end,
-    { desc = "DAP Eval (focus float)" })
-vim.keymap.set({ "n", "v" }, "<leader>dw", function() require("dapui").eval() end,
-    { desc = "DAP Eval (quick peek)" })
+vim.keymap.set({ "n", "v" }, "<leader>de", function()
+    require("dapui").eval(nil, { enter = true })
+end, { desc = "DAP Eval (focus float)" })
+vim.keymap.set({ "n", "v" }, "<leader>dw", function()
+    require("dapui").eval()
+end, { desc = "DAP Eval (quick peek)" })
 
 -- Session-only eval shortcuts: bare `de`, and double-click on a variable.
 --
@@ -198,24 +207,33 @@ vim.keymap.set({ "n", "v" }, "<leader>dw", function() require("dapui").eval() en
 --
 -- The mouse mapping replays <LeftMouse> first so the cursor lands on the word
 -- that was clicked before dapui reads it.
-local function eval_focus() require("dapui").eval(nil, { enter = true }) end
+local function eval_focus()
+    require("dapui").eval(nil, { enter = true })
+end
 
 local debug_maps_on = false
 
 local function set_debug_maps()
-  if debug_maps_on then return end
-  debug_maps_on = true
-  vim.keymap.set({ "n", "v" }, "de", eval_focus, { desc = "DAP Eval (focus float)" })
-  vim.keymap.set("n", "<2-LeftMouse>",
-    "<LeftMouse><Cmd>lua require('dapui').eval(nil, { enter = true })<CR>",
-    { desc = "DAP Eval under mouse" })
+    if debug_maps_on then
+        return
+    end
+    debug_maps_on = true
+    vim.keymap.set({ "n", "v" }, "de", eval_focus, { desc = "DAP Eval (focus float)" })
+    vim.keymap.set(
+        "n",
+        "<2-LeftMouse>",
+        "<LeftMouse><Cmd>lua require('dapui').eval(nil, { enter = true })<CR>",
+        { desc = "DAP Eval under mouse" }
+    )
 end
 
 local function clear_debug_maps()
-  if not debug_maps_on then return end
-  debug_maps_on = false
-  pcall(vim.keymap.del, { "n", "v" }, "de")
-  pcall(vim.keymap.del, "n", "<2-LeftMouse>")
+    if not debug_maps_on then
+        return
+    end
+    debug_maps_on = false
+    pcall(vim.keymap.del, { "n", "v" }, "de")
+    pcall(vim.keymap.del, "n", "<2-LeftMouse>")
 end
 
 dap.listeners.after.event_initialized["eval_shortcuts"] = set_debug_maps
@@ -225,31 +243,62 @@ dap.listeners.before.disconnect["eval_shortcuts"] = clear_debug_maps
 
 -- <leader>dA — Auto-Debug: resolve (builtin/vscode/cache) or discover a debug
 -- config with Claude, gated by a confirm surfacing the literal command.
-map("<leader>dA", function() require("util.autodebug").auto_debug() end,
-    "Auto-Debug (resolve or discover config)")
+map("<leader>dA", function()
+    require("util.autodebug").auto_debug()
+end, "Auto-Debug (resolve or discover config)")
 
 -- <leader>d* — .NET workflow (matches old config exactly)
-local dotnet = function() return require("util.dotnet-debug") end
-map("<leader>dd", function() dotnet().debug_with_terminal() end, "Debug .NET (build + run + auto-attach)")
-map("<leader>dR", function() dotnet().run_in_terminal() end,     "Run .NET (no attach)")
-map("<leader>da", function() dotnet().attach_to_dotnet() end,    "Attach to .NET process")
-map("<leader>dT", function() dotnet().toggle_terminal() end,     "Toggle .NET terminal")
-map("<leader>dS", function() dotnet().stop_terminal() end,       "Stop .NET terminal")
+local dotnet = function()
+    return require("util.dotnet-debug")
+end
+map("<leader>dd", function()
+    dotnet().debug_with_terminal()
+end, "Debug .NET (build + run + auto-attach)")
+map("<leader>dR", function()
+    dotnet().run_in_terminal()
+end, "Run .NET (no attach)")
+map("<leader>da", function()
+    dotnet().attach_to_dotnet()
+end, "Attach to .NET process")
+map("<leader>dT", function()
+    dotnet().toggle_terminal()
+end, "Toggle .NET terminal")
+map("<leader>dS", function()
+    dotnet().stop_terminal()
+end, "Stop .NET terminal")
 
 -- <leader>G* — Godot workflow (build + run godot-mono, optional debugger attach)
-local godot = function() return require("util.godot-debug") end
-map("<leader>Gr", function() godot().run_game() end,       "Run Godot game (build + launch)")
-map("<leader>Gd", function() godot().debug_game() end,     "Debug Godot (build + run + auto-attach)")
-map("<leader>Ga", function() godot().attach_to_godot() end, "Attach to running Godot")
-map("<leader>Ge", function() godot().open_editor() end,    "Open Godot editor")
-map("<leader>Gb", function() godot().build() end,          "Build (dotnet build)")
-map("<leader>Gi", function() godot().import_assets() end,  "Re-import assets (--headless --import)")
-map("<leader>GT", function() godot().toggle_terminal() end, "Toggle Godot terminal")
-map("<leader>GS", function() godot().stop() end,           "Stop Godot")
+local godot = function()
+    return require("util.godot-debug")
+end
+map("<leader>Gr", function()
+    godot().run_game()
+end, "Run Godot game (build + launch)")
+map("<leader>Gd", function()
+    godot().debug_game()
+end, "Debug Godot (build + run + auto-attach)")
+map("<leader>Ga", function()
+    godot().attach_to_godot()
+end, "Attach to running Godot")
+map("<leader>Ge", function()
+    godot().open_editor()
+end, "Open Godot editor")
+map("<leader>Gb", function()
+    godot().build()
+end, "Build (dotnet build)")
+map("<leader>Gi", function()
+    godot().import_assets()
+end, "Re-import assets (--headless --import)")
+map("<leader>GT", function()
+    godot().toggle_terminal()
+end, "Toggle Godot terminal")
+map("<leader>GS", function()
+    godot().stop()
+end, "Stop Godot")
 
 -- which-key icon under the existing <leader>d "Debug" group (no new group)
 pcall(function()
-  require("which-key").add({
-    { "<leader>dA", icon = { icon = "󰚥", color = "cyan" } },
-  })
+    require("which-key").add({
+        { "<leader>dA", icon = { icon = "󰚥", color = "cyan" } },
+    })
 end)
