@@ -95,6 +95,8 @@ return {
 
     -- Motion / navigation
     { src = "https://github.com/folke/flash.nvim" },
+    -- Search match count + current-index virtual text ("highlight lens")
+    { src = "https://github.com/kevinhwang91/nvim-hlslens" },
     -- Treesitter-based editing: split/join blocks, tab out of brackets/quotes
     { src = "https://github.com/Wansmer/treesj" },
     { src = "https://github.com/abecodes/tabout.nvim" },

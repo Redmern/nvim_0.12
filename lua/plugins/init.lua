@@ -33,6 +33,7 @@ local modules = {
     "persistence",
     "conform",
     "flash",
+    "hlslens",
     "treesj",
     "tabout", -- after blink: blink's <Tab> "fallback" step hands off to tabout's global map
     "tiny-inline-diagnostic",
