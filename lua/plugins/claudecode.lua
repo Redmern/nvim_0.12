@@ -123,13 +123,6 @@ vim.keymap.set("n", "<leader>cf", "<cmd>ClaudeCodeFocus<cr>", { desc = "Focus Cl
 vim.keymap.set("v", "<leader>cs", ":ClaudeCodeSend<cr>", { silent = true, desc = "Send selection to Claude" })
 vim.keymap.set("n", "<leader>ca", "<cmd>ClaudeCodeAdd %<cr>", { desc = "Add current file to context" })
 
--- Scroll the Claude Code terminal (or any terminal buffer) without first
--- dropping to terminal-normal mode by hand: <C-u>/<C-d> exit terminal-insert
--- and half-page scroll in one step. Leaves you in terminal-normal mode after
--- — `i`/`a` to resume typing.
-vim.keymap.set("t", "<C-u>", [[<C-\><C-n><C-u>]], { desc = "Scroll terminal up half page" })
-vim.keymap.set("t", "<C-d>", [[<C-\><C-n><C-d>]], { desc = "Scroll terminal down half page" })
-
 -- Pin every narrow terminal split (claudecode/omp side panels).
 -- Fired on multiple events because claudecode opens via snacks.terminal which
 -- doesn't always trigger TermOpen at a useful time.
