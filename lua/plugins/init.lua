@@ -3,7 +3,18 @@
 -- (e.g. lsp before roslyn-config, blink before LSP-attach, etc.).
 vim.pack.add(require("plugins.specs"))
 
-local modules = {
+-- VSCode (vscode-neovim) owns UI, LSP, tabs, statusline, terminal, file tree
+-- already -- loading our full UI/LSP/DAP plugin stack on top of its embedded
+-- headless nvim fights it and breaks basic editing (mode switches, keys).
+-- Only load pure editing-behavior plugins there.
+local vscode_modules = {
+    "treesitter",
+    "treesitter-textobjects",
+    "flash",
+    "mini",
+}
+
+local full_modules = {
     "catppuccin",
     "monokai-pro",
     "devicons",
@@ -52,6 +63,8 @@ local modules = {
     "smart-splits",
     "toggleterm",
 }
+
+local modules = vim.g.vscode and vscode_modules or full_modules
 
 for _, name in ipairs(modules) do
     local ok, err = pcall(require, "plugins." .. name)
