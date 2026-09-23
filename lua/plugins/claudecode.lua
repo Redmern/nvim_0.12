@@ -167,6 +167,10 @@ local function claude_scroll_maps(buf)
     vim.keymap.set(mode, "<A-k>", wheel("up"), { buffer = buf, desc = "Scroll Claude up" })
     vim.keymap.set(mode, "<A-j>", wheel("down"), { buffer = buf, desc = "Scroll Claude down" })
   end
+  -- Alt+n: leave typing for normal mode to select/copy output (`i` returns).
+  -- Easier than <C-\><C-n>. Fullscreen Claude keeps no nvim scrollback, so only
+  -- the visible screen is selectable — scroll to the text with Alt+k first.
+  vim.keymap.set("t", "<A-n>", [[<C-\><C-n>]], { buffer = buf, desc = "Claude: normal mode" })
   -- Shift+Enter = newline in the prompt. WezTerm used to turn Shift+Enter into
   -- <C-j> (Claude's newline key), which nvim's <C-j> window-nav map swallows,
   -- so inside nvim WezTerm sends a CSI-u Shift+Enter instead (~/.wezterm.lua)
