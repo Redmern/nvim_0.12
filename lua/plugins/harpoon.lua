@@ -1,3 +1,4 @@
+-- BENCHED: not loaded (spec + module entry commented out in specs.lua / init.lua).
 -- Harpoon v2 — pin files you're actively working in, jump by index.
 local harpoon = require("harpoon")
 harpoon:setup({

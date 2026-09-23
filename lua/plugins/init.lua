@@ -32,7 +32,7 @@ local full_modules = {
     "neotest",
     "supermaven",
     "fff",
-    "harpoon",
+    -- "harpoon", -- benched, see specs.lua
     "bufferline",
     "lualine",
     "modicator",

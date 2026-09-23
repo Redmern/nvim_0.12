@@ -53,12 +53,12 @@ return {
     { src = "https://github.com/rafamadriz/friendly-snippets" },
 
     -- Pickers — fff for files + grep; plenary kept as transitive dep of
-    -- neo-tree / neotest / lazygit / nvim-notify / harpoon
+    -- neo-tree / neotest / lazygit / nvim-notify
     { src = "https://github.com/nvim-lua/plenary.nvim" },
     { src = "https://github.com/dmtrKovalenko/fff.nvim" },
 
-    -- Harpoon (v2) — pin a handful of files, jump with <leader>1..4
-    { src = "https://github.com/ThePrimeagen/harpoon", version = "harpoon2" },
+    -- Harpoon (v2) — BENCHED (unused). Uncomment here + "harpoon" in init.lua to restore.
+    -- { src = "https://github.com/ThePrimeagen/harpoon", version = "harpoon2" },
 
     -- UI: tabs, status, icons, indent guides, hex-colour preview, markdown render
     { src = "https://github.com/akinsho/bufferline.nvim" },
