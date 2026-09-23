@@ -57,6 +57,8 @@ Adding a plugin = three edits:
 
 **Diagnostics rendering**: end-of-line `●` for every diagnostic; cursor line additionally gets the full message via `tiny-inline-diagnostic.nvim`. Sign column off.
 
+**Error log** (`lua/util/error-log.lua`, wired in `plugins/noice.lua`): a side-effect-only noice route (`cond` logs, returns `false`) writes every error message to `stdpath("log")/errors/`. Errors less than `gap` (60s) apart go into the same file. `:ErrorLog` opens the newest file, `:ErrorLog!` opens the folder. A second route keeps errors in the notify popup, which is capped at 5 lines (`max_height`), so long ones never open the `long_message_to_split` split.
+
 **.NET / Blazor debugging** (`lua/util/dotnet-debug.lua` + `lua/plugins/dap.lua`):
 - `<leader>dd` = `dotnet run` in a detached tmux window (or toggleterm split fallback), then `<leader>da` attaches netcoredbg.
 - `<leader>dF` = Azure Functions isolated-worker via `func start --dotnet-isolated-debug`, auto-attaches once worker is up.
