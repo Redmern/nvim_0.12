@@ -65,7 +65,9 @@ vim.keymap.set("t", "<C-l>", term_nav(ss.move_cursor_right), { desc = "Window/pa
 -- Claude pane is the right-most split, so left is the only direction with a
 -- neighbour anyway; <C-h> (ASCII BS) is the most expendable inner-app key since
 -- the real Backspace still works. Plain shells keep all four global nav maps.
--- To leave an AI buffer up/down/right: <C-\><C-n> then Ctrl+j/k/l.
+-- To leave an AI buffer up/down/right: <C-\><C-n> then Ctrl+j/k/l — except in
+-- the Claude buffer, where <C-j>/<C-k> scroll the conversation instead (see
+-- plugins/claudecode.lua); use <C-w>j/k there.
 -- NB: TermOpen (not FileType=toggleterm) — claudecode's terminal has no
 -- toggleterm filetype, so a FileType autocmd never fired for it.
 vim.api.nvim_create_autocmd("TermOpen", {
@@ -80,8 +82,11 @@ vim.api.nvim_create_autocmd("TermOpen", {
             -- AI panel: shadow the global nav maps for <C-j/k/l> so the inner app
             -- gets them. <C-h> is deliberately NOT shadowed — it keeps the global
             -- move_cursor_left map so you can step left out of the AI pane.
+            -- Claude's <C-j>/<C-k> are owned by plugins/claudecode.lua (scroll).
+            local keys = (name .. " " .. cmd):lower():match("claude")
+                and { "<C-l>" } or { "<C-j>", "<C-k>", "<C-l>" }
             local opts = { buffer = ev.buf, silent = true }
-            for _, k in ipairs({ "<C-j>", "<C-k>", "<C-l>" }) do
+            for _, k in ipairs(keys) do
                 vim.keymap.set("t", k, k, opts) -- literal passthrough to the terminal job
             end
         end, 50)

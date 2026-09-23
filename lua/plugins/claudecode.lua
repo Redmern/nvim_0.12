@@ -139,6 +139,53 @@ vim.api.nvim_create_autocmd({ "TermOpen", "BufWinEnter", "WinEnter" }, {
   callback = function() pin_narrow_term(vim.api.nvim_get_current_win()) end,
 })
 
+-- <C-k>/<C-j> scroll the Claude conversation up/down, buffer-local to the
+-- Claude terminal (smart-splits skips these two keys there). Where the history
+-- lives depends on Claude's renderer:
+--   * fullscreen (`"tui": "fullscreen"`, the work profile) draws on the alt
+--     screen, so nvim's scrollback stays empty — send PageUp/PageDown and let
+--     Claude scroll its own view (half a viewport per press).
+--   * classic renderer: the transcript is in nvim's scrollback — drop to
+--     terminal-normal and half-page scroll there. <C-j> at the bottom resumes
+--     typing.
+-- Told apart by whether the buffer holds more lines than the window: the alt
+-- screen never pushes anything into scrollback.
+local function has_scrollback()
+  return vim.api.nvim_buf_line_count(0) > vim.api.nvim_win_get_height(0)
+end
+
+local function claude_scroll_maps(buf)
+  local function map(mode, lhs, rhs, desc)
+    vim.keymap.set(mode, lhs, rhs, { buffer = buf, expr = true, silent = true, desc = desc })
+  end
+  map("t", "<C-k>", function()
+    return has_scrollback() and [[<C-\><C-n><C-u>]] or "<PageUp>"
+  end, "Scroll Claude up")
+  map("t", "<C-j>", function()
+    -- classic + terminal mode means we're already at the bottom
+    return has_scrollback() and "" or "<PageDown>"
+  end, "Scroll Claude down")
+  map("n", "<C-k>", function()
+    return has_scrollback() and "<C-u>" or "i<PageUp>"
+  end, "Scroll Claude up")
+  map("n", "<C-j>", function()
+    if not has_scrollback() then return "i<PageDown>" end
+    return vim.fn.line("w$") >= vim.fn.line("$") and "i" or "<C-d>"
+  end, "Scroll Claude down")
+end
+
+-- Same detection + delay as the smart-splits AI-panel autocmd: claudecode's
+-- snacks terminal sets its name/job cmd a moment after TermOpen.
+vim.api.nvim_create_autocmd("TermOpen", {
+  callback = function(ev)
+    vim.defer_fn(function()
+      if not vim.api.nvim_buf_is_valid(ev.buf) then return end
+      local id = vim.api.nvim_buf_get_name(ev.buf) .. " " .. (vim.b[ev.buf].terminal_job_cmd or "")
+      if id:lower():match("claude") then claude_scroll_maps(ev.buf) end
+    end, 50)
+  end,
+})
+
 require("which-key").add({
   { "<leader>cc", icon = { icon = "󰭹", color = "purple" }, mode = { "n", "t" } },
   { "<leader>cf", icon = { icon = "󰈶", color = "purple" } },
