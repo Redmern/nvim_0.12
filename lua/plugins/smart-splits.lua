@@ -57,6 +57,17 @@ vim.keymap.set("t", "<C-j>", term_nav(ss.move_cursor_down),  { desc = "Window/pa
 vim.keymap.set("t", "<C-k>", term_nav(ss.move_cursor_up),    { desc = "Window/pane up"    })
 vim.keymap.set("t", "<C-l>", term_nav(ss.move_cursor_right), { desc = "Window/pane right" })
 
+-- Alt+h/j/k/l resizes the current split — in terminal mode too, so the Claude
+-- panel can be grown/shrunk without <C-\><C-n> first (resize doesn't move the
+-- cursor, so there's no stopinsert dance like term_nav). WezTerm forwards
+-- Alt+hjkl only when the pane runs nvim (smart_alt in ~/.wezterm/tmux-mode.lua).
+for _, mode in ipairs({ "n", "t" }) do
+  vim.keymap.set(mode, "<A-h>", ss.resize_left,  { desc = "Resize split left"  })
+  vim.keymap.set(mode, "<A-j>", ss.resize_down,  { desc = "Resize split down"  })
+  vim.keymap.set(mode, "<A-k>", ss.resize_up,    { desc = "Resize split up"    })
+  vim.keymap.set(mode, "<A-l>", ss.resize_right, { desc = "Resize split right" })
+end
+
 -- Terminal-mode nav: the global <C-h/j/k/l> t-maps above navigate out of ANY
 -- terminal. In AI/chat terminals (claudecode, omp) we keep <C-j/k/l> raw so the
 -- inner app receives them, but leave <C-h> on the global map so you can step
