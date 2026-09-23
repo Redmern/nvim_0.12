@@ -140,38 +140,31 @@ vim.api.nvim_create_autocmd({ "TermOpen", "BufWinEnter", "WinEnter" }, {
 })
 
 -- <C-k>/<C-j> scroll the Claude conversation up/down, buffer-local to the
--- Claude terminal (smart-splits skips these two keys there). Where the history
--- lives depends on Claude's renderer:
---   * fullscreen (`"tui": "fullscreen"`, the work profile) draws on the alt
---     screen, so nvim's scrollback stays empty — send PageUp/PageDown and let
---     Claude scroll its own view (half a viewport per press).
---   * classic renderer: the transcript is in nvim's scrollback — drop to
---     terminal-normal and half-page scroll there. <C-j> at the bottom resumes
---     typing.
--- Told apart by whether the buffer holds more lines than the window: the alt
--- screen never pushes anything into scrollback.
-local function has_scrollback()
-  return vim.api.nvim_buf_line_count(0) > vim.api.nvim_win_get_height(0)
+-- Claude terminal (smart-splits skips these two keys there). They replay
+-- mouse-wheel events over the Claude window, because the wheel is the one input
+-- that scrolls under both renderers: fullscreen Claude (alt screen, own
+-- transcript view) takes wheel events via mouse tracking, while the classic
+-- renderer leaves history in nvim's scrollback, which nvim itself wheel-scrolls.
+-- Sending PageUp/PageDown instead did nothing in practice.
+local WHEEL_TICKS = 3 -- wheel events per keypress
+
+local function wheel(dir)
+  return function()
+    local win = vim.api.nvim_get_current_win()
+    local row, col = unpack(vim.api.nvim_win_get_position(win))
+    row = row + math.floor(vim.api.nvim_win_get_height(win) / 2)
+    col = col + math.floor(vim.api.nvim_win_get_width(win) / 2)
+    for _ = 1, WHEEL_TICKS do
+      vim.api.nvim_input_mouse("wheel", dir, "", 0, row, col)
+    end
+  end
 end
 
 local function claude_scroll_maps(buf)
-  local function map(mode, lhs, rhs, desc)
-    vim.keymap.set(mode, lhs, rhs, { buffer = buf, expr = true, silent = true, desc = desc })
+  for _, mode in ipairs({ "t", "n" }) do
+    vim.keymap.set(mode, "<C-k>", wheel("up"), { buffer = buf, desc = "Scroll Claude up" })
+    vim.keymap.set(mode, "<C-j>", wheel("down"), { buffer = buf, desc = "Scroll Claude down" })
   end
-  map("t", "<C-k>", function()
-    return has_scrollback() and [[<C-\><C-n><C-u>]] or "<PageUp>"
-  end, "Scroll Claude up")
-  map("t", "<C-j>", function()
-    -- classic + terminal mode means we're already at the bottom
-    return has_scrollback() and "" or "<PageDown>"
-  end, "Scroll Claude down")
-  map("n", "<C-k>", function()
-    return has_scrollback() and "<C-u>" or "i<PageUp>"
-  end, "Scroll Claude up")
-  map("n", "<C-j>", function()
-    if not has_scrollback() then return "i<PageDown>" end
-    return vim.fn.line("w$") >= vim.fn.line("$") and "i" or "<C-d>"
-  end, "Scroll Claude down")
 end
 
 -- Same detection + delay as the smart-splits AI-panel autocmd: claudecode's
