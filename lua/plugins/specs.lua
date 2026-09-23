@@ -121,4 +121,8 @@ return {
     -- AI side panels
     { src = "https://github.com/coder/claudecode.nvim" },
     -- omp has no nvim plugin yet → driven via lua/plugins/omp.lua (terminal split)
+
+    -- Typing practice (:Typr / :TyprStats); volt is its UI library
+    { src = "https://github.com/nvzone/typr" },
+    { src = "https://github.com/nvzone/volt" },
 }

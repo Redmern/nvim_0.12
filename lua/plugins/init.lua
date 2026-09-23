@@ -62,6 +62,7 @@ local full_modules = {
     "omp",
     "smart-splits",
     "toggleterm",
+    "typr",
 }
 
 local modules = vim.g.vscode and vscode_modules or full_modules
