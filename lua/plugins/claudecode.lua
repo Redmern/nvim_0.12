@@ -139,8 +139,10 @@ vim.api.nvim_create_autocmd({ "TermOpen", "BufWinEnter", "WinEnter" }, {
   callback = function() pin_narrow_term(vim.api.nvim_get_current_win()) end,
 })
 
--- <C-k>/<C-j> scroll the Claude conversation up/down, buffer-local to the
--- Claude terminal (smart-splits skips these two keys there). They replay
+-- Alt+k/Alt+j scroll the Claude conversation up/down, buffer-local to the
+-- Claude terminal. They shadow smart-splits' global Alt+k/j split resize, which
+-- is moot there anyway (the panel is full height; Alt+h/l still resize its
+-- width). <C-j>/<C-k> stay window/pane navigation, as everywhere else. They replay
 -- mouse-wheel events over the Claude window, because the wheel is the one input
 -- that scrolls under both renderers: fullscreen Claude (alt screen, own
 -- transcript view) takes wheel events via mouse tracking, while the classic
@@ -162,13 +164,13 @@ end
 
 local function claude_scroll_maps(buf)
   for _, mode in ipairs({ "t", "n" }) do
-    vim.keymap.set(mode, "<C-k>", wheel("up"), { buffer = buf, desc = "Scroll Claude up" })
-    vim.keymap.set(mode, "<C-j>", wheel("down"), { buffer = buf, desc = "Scroll Claude down" })
+    vim.keymap.set(mode, "<A-k>", wheel("up"), { buffer = buf, desc = "Scroll Claude up" })
+    vim.keymap.set(mode, "<A-j>", wheel("down"), { buffer = buf, desc = "Scroll Claude down" })
   end
   -- Shift+Enter = newline in the prompt. WezTerm used to turn Shift+Enter into
-  -- <C-j> (Claude's newline key), which the scroll map above now swallows, so
-  -- inside nvim WezTerm sends a CSI-u Shift+Enter instead (~/.wezterm.lua) and
-  -- this hands Claude the raw LF it reads as `chat:newline`.
+  -- <C-j> (Claude's newline key), which nvim's <C-j> window-nav map swallows,
+  -- so inside nvim WezTerm sends a CSI-u Shift+Enter instead (~/.wezterm.lua)
+  -- and this hands Claude the raw LF it reads as `chat:newline`.
   vim.keymap.set("t", "<S-CR>", function()
     vim.api.nvim_chan_send(vim.bo[buf].channel, "\n")
   end, { buffer = buf, desc = "Newline in Claude prompt" })

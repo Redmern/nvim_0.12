@@ -83,7 +83,7 @@ Adding a plugin = three edits:
 **Window-layout invariants:**
 - `vim.o.equalalways = false` globally.
 - neo-tree + claudecode + opencode get `winfixwidth = true` so the central code area is the only one that resizes when buffers open/close.
-- Claude terminal: `<C-j>`/`<C-k>` are buffer-local **scroll** keys (`plugins/claudecode.lua`), not window nav — smart-splits skips them there. They replay mouse-wheel events over the Claude window (`nvim_input_mouse`) — the wheel scrolls under both renderers (fullscreen Claude via mouse tracking, classic via nvim scrollback); PageUp/PageDown did nothing. `<C-h>` still leaves the pane. Shift+Enter: WezTerm (`~/.wezterm.lua`) sends it as CSI-u `<S-CR>` when the pane runs nvim (elsewhere as `<C-j>`, Claude's newline); the Claude buffer maps `<S-CR>` to a raw LF so it can't collide with the `<C-j>` scroll.
+- Claude terminal: `<C-j>`/`<C-k>` stay window/pane **nav** (smart-splits' global maps); scrolling is buffer-local **`<A-k>`/`<A-j>`** (`plugins/claudecode.lua`), shadowing the global Alt+j/k split resize there. They replay mouse-wheel events over the Claude window (`nvim_input_mouse`) — the wheel scrolls under both renderers (fullscreen Claude via mouse tracking, classic via nvim scrollback); PageUp/PageDown did nothing. `<C-h>` still leaves the pane. Shift+Enter: WezTerm (`~/.wezterm.lua`) sends it as CSI-u `<S-CR>` when the pane runs nvim (elsewhere as `<C-j>`, Claude's newline); the Claude buffer maps `<S-CR>` to a raw LF so it can't collide with `<C-j>` nav.
 - `:bd` / `:bdelete` are aliased to `:BD`, which is layout-preserving (switches to another buffer instead of closing the window).
 
 **Treesitter editing helpers:**
