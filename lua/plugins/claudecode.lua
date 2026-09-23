@@ -165,6 +165,13 @@ local function claude_scroll_maps(buf)
     vim.keymap.set(mode, "<C-k>", wheel("up"), { buffer = buf, desc = "Scroll Claude up" })
     vim.keymap.set(mode, "<C-j>", wheel("down"), { buffer = buf, desc = "Scroll Claude down" })
   end
+  -- Shift+Enter = newline in the prompt. WezTerm used to turn Shift+Enter into
+  -- <C-j> (Claude's newline key), which the scroll map above now swallows, so
+  -- inside nvim WezTerm sends a CSI-u Shift+Enter instead (~/.wezterm.lua) and
+  -- this hands Claude the raw LF it reads as `chat:newline`.
+  vim.keymap.set("t", "<S-CR>", function()
+    vim.api.nvim_chan_send(vim.bo[buf].channel, "\n")
+  end, { buffer = buf, desc = "Newline in Claude prompt" })
 end
 
 -- Same detection + delay as the smart-splits AI-panel autocmd: claudecode's
