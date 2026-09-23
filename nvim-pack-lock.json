@@ -165,10 +165,6 @@
       "rev": "7f867b4980946f115f4ccb922637d70d89a59cb4",
       "src": "https://github.com/mawkler/modicator.nvim"
     },
-    "monokai-pro": {
-      "rev": "5b06ae0736813b1c65d76a4be9edbe92be0b9c74",
-      "src": "https://github.com/gthelding/monokai-pro.nvim"
-    },
     "neo-tree.nvim": {
       "rev": "8f858a7bb4cd4d154e7b3a22359cbc3c888972ea",
       "src": "https://github.com/nvim-neo-tree/neo-tree.nvim"
