@@ -165,6 +165,10 @@
       "rev": "7f867b4980946f115f4ccb922637d70d89a59cb4",
       "src": "https://github.com/mawkler/modicator.nvim"
     },
+    "monokai-pro": {
+      "rev": "a68e38b8e55d69a215d0f02598900a79c356da9d",
+      "src": "https://github.com/loctvl842/monokai-pro.nvim"
+    },
     "neo-tree.nvim": {
       "rev": "8f858a7bb4cd4d154e7b3a22359cbc3c888972ea",
       "src": "https://github.com/nvim-neo-tree/neo-tree.nvim"
@@ -212,6 +216,10 @@
     "nvim-dap-virtual-text": {
       "rev": "fbdb48c2ed45f4a8293d0d483f7730d24467ccb6",
       "src": "https://github.com/theHamsta/nvim-dap-virtual-text"
+    },
+    "nvim-hlslens": {
+      "rev": "be2d7b2be01860b5445a007ff2bc72b29896db6b",
+      "src": "https://github.com/kevinhwang91/nvim-hlslens"
     },
     "nvim-lspconfig": {
       "rev": "deb0df61b2d6691e745b16a42755e10ad38218e9",
