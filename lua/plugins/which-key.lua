@@ -13,7 +13,7 @@ require("which-key").add({
     { "<leader>d", group = "Debug", icon = { icon = "󰃤", color = "red" } },
     { "<leader>G", group = "Godot", icon = { icon = "󰊕", color = "green" } },
     { "<leader>b", group = "Buffer", icon = { icon = "󰓩", color = "cyan" } },
-    { "<leader>c", group = "Claude Code", icon = { icon = "󰭹", color = "purple" } },
+    { "<leader>c", group = "Claude Code", icon = { icon = "󰭹", color = "purple" }, mode = { "n", "x", "t" } },
     { "<leader>o", group = "omp", icon = { icon = "󰈮", color = "green" }, mode = { "n", "x", "t" } },
     { "<leader>m", group = "Markdown", icon = { icon = "󰍔", color = "blue" }, mode = { "n", "x" } },
     { "<leader>T", group = "Typing", icon = { icon = "󰌌", color = "yellow" } },

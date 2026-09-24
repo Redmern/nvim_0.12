@@ -193,8 +193,8 @@ vim.api.nvim_create_autocmd("TermOpen", {
 })
 
 require("which-key").add({
-  { "<leader>cc", icon = { icon = "󰭹", color = "purple" }, mode = { "n", "t" } },
-  { "<leader>cf", icon = { icon = "󰈶", color = "purple" } },
-  { "<leader>ca", icon = { icon = "󰐕", color = "green" } },
-  { "<leader>cs", icon = { icon = "󰒡", color = "blue" }, mode = "v" },
+  { "<leader>cc", desc = "Toggle Claude Code", icon = { icon = "󰭹", color = "purple" }, mode = { "n", "t" } },
+  { "<leader>cf", desc = "Focus Claude Code", icon = { icon = "󰈶", color = "purple" } },
+  { "<leader>ca", desc = "Add current file to context", icon = { icon = "󰐕", color = "green" } },
+  { "<leader>cs", desc = "Send selection to Claude", icon = { icon = "󰒡", color = "blue" }, mode = "x" },
 })
