@@ -101,4 +101,5 @@ Adding a plugin = three edits:
 - New plugin config files: lowercase, hyphenated, matching the require path (`lua/plugins/foo-bar.lua` → `require("plugins.foo-bar")`).
 - `lua/plugins/init.lua` only dispatches; never put setup code there.
 - `pcall` around colorscheme + plugin requires so a missing dep doesn't break startup.
+- Claude Code hook (`.claude/settings.json` → `.claude/hooks/stylua.ps1`) runs `stylua` with `stylua.toml` on every in-repo `.lua` file Claude edits; fails open if `stylua` is missing.
 - Anything that affects every LSP server (capabilities, handlers) goes in `lua/plugins/lsp.lua` so the load order is centralised.
