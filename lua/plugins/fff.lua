@@ -1,6 +1,9 @@
 -- fff.nvim — fast file finder. Replaces telescope find_files on <leader><space>
 -- and <leader>ff. First run will build the Rust binary (cargo required).
+-- lazy_sync: index when a picker first opens, not at startup, so nvims that
+-- never search (e.g. fleet orchestrators) never open fff's database.
 require("fff").setup({
+    lazy_sync = true,
     debug = {
         enabled = false,
         show_scores = false,
@@ -57,11 +60,13 @@ vim.keymap.set("n", "<leader>fh", ":help ", { desc = "Help tag" })
 -- CRLF file keeps its trailing \r on every line and renders as ^M
 -- (fff/file_picker/preview.lua splits the raw bytes on "\n" only). fff's own
 -- line setters are file-locals, so wrapping the API call is the only hook point.
-local ok_ui, picker_ui = pcall(require, "fff.picker_ui")
-if ok_ui then
+-- picker_ui is looked up, not required: requiring it initialises fff (database
+-- and indexing) in every nvim at startup, even ones that never open a picker.
+do
     local set_lines = vim.api.nvim_buf_set_lines
     vim.api.nvim_buf_set_lines = function(buf, start, stop, strict, lines)
-        local state = picker_ui.state
+        local picker_ui = package.loaded["fff.picker_ui"]
+        local state = picker_ui and picker_ui.state
         if state and buf == state.preview_buf and lines and #lines > 0 then
             local cleaned
             for i = 1, #lines do
