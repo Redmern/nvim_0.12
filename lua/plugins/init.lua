@@ -23,8 +23,8 @@ local full_modules = {
     "which-key",
     "treesitter",
     "treesitter-textobjects",
-    "luasnip",        -- before blink so the snippet engine is loaded when blink reads it
-    "blink",          -- before lsp.lua so capabilities exist when servers attach
+    "luasnip", -- before blink so the snippet engine is loaded when blink reads it
+    "blink", -- before lsp.lua so capabilities exist when servers attach
     "lsp",
     "lazydev",
     "dap",

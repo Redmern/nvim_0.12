@@ -10,31 +10,31 @@ local claude_cmd = vim.fn.executable(profile_wrapper) == 1 and profile_wrapper o
 -- cmd.exe AutoRun hook at ~\.claude-profile-hook.cmd (only cmd.exe sessions,
 -- which is what fleet spawns go through). Set the variable here instead.
 if vim.fn.has("win32") == 1 then
-  -- lowercase root, no trailing separator -> config dir. This list is duplicated
-  -- in $ClaudeProfileRoots (PowerShell profile) and ~\.claude-profile-hook.cmd;
-  -- change one, change all three.
-  local roots = { ["c:\\personal"] = (vim.env.USERPROFILE or "") .. "\\.claude-personal" }
+    -- lowercase root, no trailing separator -> config dir. This list is duplicated
+    -- in $ClaudeProfileRoots (PowerShell profile) and ~\.claude-profile-hook.cmd;
+    -- change one, change all three.
+    local roots = { ["c:\\personal"] = (vim.env.USERPROFILE or "") .. "\\.claude-personal" }
 
-  -- Anything already in the environment was set deliberately (a `personal`
-  -- wezterm window, an explicit export) and outranks the folder rules.
-  local inherited = vim.env.CLAUDE_CONFIG_DIR
+    -- Anything already in the environment was set deliberately (a `personal`
+    -- wezterm window, an explicit export) and outranks the folder rules.
+    local inherited = vim.env.CLAUDE_CONFIG_DIR
 
-  local function apply_account_profile()
-    if inherited then
-      return
+    local function apply_account_profile()
+        if inherited then
+            return
+        end
+        local cwd = (vim.fn.getcwd() or ""):gsub("/", "\\"):lower()
+        for root, dir in pairs(roots) do
+            if cwd == root or cwd:sub(1, #root + 1) == root .. "\\" then
+                vim.env.CLAUDE_CONFIG_DIR = dir
+                return
+            end
+        end
+        vim.env.CLAUDE_CONFIG_DIR = nil -- default profile: work account
     end
-    local cwd = (vim.fn.getcwd() or ""):gsub("/", "\\"):lower()
-    for root, dir in pairs(roots) do
-      if cwd == root or cwd:sub(1, #root + 1) == root .. "\\" then
-        vim.env.CLAUDE_CONFIG_DIR = dir
-        return
-      end
-    end
-    vim.env.CLAUDE_CONFIG_DIR = nil -- default profile: work account
-  end
 
-  apply_account_profile()
-  vim.api.nvim_create_autocmd("DirChanged", { callback = apply_account_profile })
+    apply_account_profile()
+    vim.api.nvim_create_autocmd("DirChanged", { callback = apply_account_profile })
 end
 
 -- Windows: claudecode.nvim picks its port by test-binding a probe socket in
@@ -45,36 +45,36 @@ end
 -- Retry: each attempt re-rolls a random port, and vim.wait pumps the event
 -- loop so the previous probe handle is actually reaped in between.
 if vim.fn.has("win32") == 1 then
-  local tcp = require("claudecode.server.tcp")
-  local create_server = tcp.create_server
-  tcp.create_server = function(config, callbacks, auth_token)
-    local server, err
-    for attempt = 1, 5 do
-      server, err = create_server(config, callbacks, auth_token)
-      if server then
-        return server, nil
-      end
-      if attempt < 5 then
-        vim.wait(25)
-      end
+    local tcp = require("claudecode.server.tcp")
+    local create_server = tcp.create_server
+    tcp.create_server = function(config, callbacks, auth_token)
+        local server, err
+        for attempt = 1, 5 do
+            server, err = create_server(config, callbacks, auth_token)
+            if server then
+                return server, nil
+            end
+            if attempt < 5 then
+                vim.wait(25)
+            end
+        end
+        return nil, err
     end
-    return nil, err
-  end
 end
 
 require("claudecode").setup({
-  terminal_cmd = claude_cmd,
-  -- Spawn Claude in nvim's project cwd so the wrapper sees the right folder.
-  cwd_provider = function(ctx)
-    return ctx.cwd
-  end,
-  terminal = {
-    show_native_term_exit_tip = false,
-    -- pin the split geometry so it never depends on which window happens to
-    -- be focused when the terminal opens
-    split_side = "right",
-    split_width_percentage = 0.30,
-  },
+    terminal_cmd = claude_cmd,
+    -- Spawn Claude in nvim's project cwd so the wrapper sees the right folder.
+    cwd_provider = function(ctx)
+        return ctx.cwd
+    end,
+    terminal = {
+        show_native_term_exit_tip = false,
+        -- pin the split geometry so it never depends on which window happens to
+        -- be focused when the terminal opens
+        split_side = "right",
+        split_width_percentage = 0.30,
+    },
 })
 
 -- Toggling Claude while focus sits in neo-tree (or another side panel) makes
@@ -82,32 +82,36 @@ require("claudecode").setup({
 -- tree, sometimes opening a sliver. Always jump to the main editor window
 -- first, then re-assert the tree's width once the split has landed.
 local function main_window()
-  for _, w in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
-    local b = vim.api.nvim_win_get_buf(w)
-    if vim.api.nvim_win_get_config(w).relative == ""
-        and vim.bo[b].buftype == ""
-        and vim.bo[b].filetype ~= "neo-tree"
-        and not vim.w[w].statusline_pad then
-      return w
+    for _, w in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
+        local b = vim.api.nvim_win_get_buf(w)
+        if
+            vim.api.nvim_win_get_config(w).relative == ""
+            and vim.bo[b].buftype == ""
+            and vim.bo[b].filetype ~= "neo-tree"
+            and not vim.w[w].statusline_pad
+        then
+            return w
+        end
     end
-  end
 end
 
 local function claude_toggle()
-  -- toggling from inside the claude terminal itself just closes it
-  if vim.bo.buftype ~= "terminal" then
-    local main = main_window()
-    if main then vim.api.nvim_set_current_win(main) end
-  end
-  vim.cmd("ClaudeCode")
-  vim.defer_fn(function()
-    for _, w in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
-      if vim.bo[vim.api.nvim_win_get_buf(w)].filetype == "neo-tree" then
-        vim.api.nvim_win_set_width(w, 45)
-        vim.wo[w].winfixwidth = true
-      end
+    -- toggling from inside the claude terminal itself just closes it
+    if vim.bo.buftype ~= "terminal" then
+        local main = main_window()
+        if main then
+            vim.api.nvim_set_current_win(main)
+        end
     end
-  end, 80)
+    vim.cmd("ClaudeCode")
+    vim.defer_fn(function()
+        for _, w in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
+            if vim.bo[vim.api.nvim_win_get_buf(w)].filetype == "neo-tree" then
+                vim.api.nvim_win_set_width(w, 45)
+                vim.wo[w].winfixwidth = true
+            end
+        end
+    end, 80)
 end
 
 -- <leader>c* — Claude Code (icons attached via which-key.add below)
@@ -127,16 +131,22 @@ vim.keymap.set("n", "<leader>ca", "<cmd>ClaudeCodeAdd %<cr>", { desc = "Add curr
 -- Fired on multiple events because claudecode opens via snacks.terminal which
 -- doesn't always trigger TermOpen at a useful time.
 local function pin_narrow_term(win)
-  if not (win and vim.api.nvim_win_is_valid(win)) then return end
-  local buf = vim.api.nvim_win_get_buf(win)
-  if vim.bo[buf].buftype ~= "terminal" then return end
-  if vim.api.nvim_win_get_width(win) < math.floor(vim.o.columns * 0.8) then
-    vim.wo[win].winfixwidth = true
-  end
+    if not (win and vim.api.nvim_win_is_valid(win)) then
+        return
+    end
+    local buf = vim.api.nvim_win_get_buf(win)
+    if vim.bo[buf].buftype ~= "terminal" then
+        return
+    end
+    if vim.api.nvim_win_get_width(win) < math.floor(vim.o.columns * 0.8) then
+        vim.wo[win].winfixwidth = true
+    end
 end
 
 vim.api.nvim_create_autocmd({ "TermOpen", "BufWinEnter", "WinEnter" }, {
-  callback = function() pin_narrow_term(vim.api.nvim_get_current_win()) end,
+    callback = function()
+        pin_narrow_term(vim.api.nvim_get_current_win())
+    end,
 })
 
 -- Alt+k/Alt+j scroll the Claude conversation up/down, buffer-local to the
@@ -151,50 +161,54 @@ vim.api.nvim_create_autocmd({ "TermOpen", "BufWinEnter", "WinEnter" }, {
 local WHEEL_TICKS = 3 -- wheel events per keypress
 
 local function wheel(dir)
-  return function()
-    local win = vim.api.nvim_get_current_win()
-    local row, col = unpack(vim.api.nvim_win_get_position(win))
-    row = row + math.floor(vim.api.nvim_win_get_height(win) / 2)
-    col = col + math.floor(vim.api.nvim_win_get_width(win) / 2)
-    for _ = 1, WHEEL_TICKS do
-      vim.api.nvim_input_mouse("wheel", dir, "", 0, row, col)
+    return function()
+        local win = vim.api.nvim_get_current_win()
+        local row, col = unpack(vim.api.nvim_win_get_position(win))
+        row = row + math.floor(vim.api.nvim_win_get_height(win) / 2)
+        col = col + math.floor(vim.api.nvim_win_get_width(win) / 2)
+        for _ = 1, WHEEL_TICKS do
+            vim.api.nvim_input_mouse("wheel", dir, "", 0, row, col)
+        end
     end
-  end
 end
 
 local function claude_scroll_maps(buf)
-  for _, mode in ipairs({ "t", "n" }) do
-    vim.keymap.set(mode, "<A-k>", wheel("up"), { buffer = buf, desc = "Scroll Claude up" })
-    vim.keymap.set(mode, "<A-j>", wheel("down"), { buffer = buf, desc = "Scroll Claude down" })
-  end
-  -- Alt+n: leave typing for normal mode to select/copy output (`i` returns).
-  -- Easier than <C-\><C-n>. Fullscreen Claude keeps no nvim scrollback, so only
-  -- the visible screen is selectable — scroll to the text with Alt+k first.
-  vim.keymap.set("t", "<A-n>", [[<C-\><C-n>]], { buffer = buf, desc = "Claude: normal mode" })
-  -- Shift+Enter = newline in the prompt. WezTerm used to turn Shift+Enter into
-  -- <C-j> (Claude's newline key), which nvim's <C-j> window-nav map swallows,
-  -- so inside nvim WezTerm sends a CSI-u Shift+Enter instead (~/.wezterm.lua)
-  -- and this hands Claude the raw LF it reads as `chat:newline`.
-  vim.keymap.set("t", "<S-CR>", function()
-    vim.api.nvim_chan_send(vim.bo[buf].channel, "\n")
-  end, { buffer = buf, desc = "Newline in Claude prompt" })
+    for _, mode in ipairs({ "t", "n" }) do
+        vim.keymap.set(mode, "<A-k>", wheel("up"), { buffer = buf, desc = "Scroll Claude up" })
+        vim.keymap.set(mode, "<A-j>", wheel("down"), { buffer = buf, desc = "Scroll Claude down" })
+    end
+    -- Alt+n: leave typing for normal mode to select/copy output (`i` returns).
+    -- Easier than <C-\><C-n>. Fullscreen Claude keeps no nvim scrollback, so only
+    -- the visible screen is selectable — scroll to the text with Alt+k first.
+    vim.keymap.set("t", "<A-n>", [[<C-\><C-n>]], { buffer = buf, desc = "Claude: normal mode" })
+    -- Shift+Enter = newline in the prompt. WezTerm used to turn Shift+Enter into
+    -- <C-j> (Claude's newline key), which nvim's <C-j> window-nav map swallows,
+    -- so inside nvim WezTerm sends a CSI-u Shift+Enter instead (~/.wezterm.lua)
+    -- and this hands Claude the raw LF it reads as `chat:newline`.
+    vim.keymap.set("t", "<S-CR>", function()
+        vim.api.nvim_chan_send(vim.bo[buf].channel, "\n")
+    end, { buffer = buf, desc = "Newline in Claude prompt" })
 end
 
 -- Same detection + delay as the smart-splits AI-panel autocmd: claudecode's
 -- snacks terminal sets its name/job cmd a moment after TermOpen.
 vim.api.nvim_create_autocmd("TermOpen", {
-  callback = function(ev)
-    vim.defer_fn(function()
-      if not vim.api.nvim_buf_is_valid(ev.buf) then return end
-      local id = vim.api.nvim_buf_get_name(ev.buf) .. " " .. (vim.b[ev.buf].terminal_job_cmd or "")
-      if id:lower():match("claude") then claude_scroll_maps(ev.buf) end
-    end, 50)
-  end,
+    callback = function(ev)
+        vim.defer_fn(function()
+            if not vim.api.nvim_buf_is_valid(ev.buf) then
+                return
+            end
+            local id = vim.api.nvim_buf_get_name(ev.buf) .. " " .. (vim.b[ev.buf].terminal_job_cmd or "")
+            if id:lower():match("claude") then
+                claude_scroll_maps(ev.buf)
+            end
+        end, 50)
+    end,
 })
 
 require("which-key").add({
-  { "<leader>cc", desc = "Toggle Claude Code", icon = { icon = "󰭹", color = "purple" }, mode = { "n", "t" } },
-  { "<leader>cf", desc = "Focus Claude Code", icon = { icon = "󰈶", color = "purple" } },
-  { "<leader>ca", desc = "Add current file to context", icon = { icon = "󰐕", color = "green" } },
-  { "<leader>cs", desc = "Send selection to Claude", icon = { icon = "󰒡", color = "blue" }, mode = "x" },
+    { "<leader>cc", desc = "Toggle Claude Code", icon = { icon = "󰭹", color = "purple" }, mode = { "n", "t" } },
+    { "<leader>cf", desc = "Focus Claude Code", icon = { icon = "󰈶", color = "purple" } },
+    { "<leader>ca", desc = "Add current file to context", icon = { icon = "󰐕", color = "green" } },
+    { "<leader>cs", desc = "Send selection to Claude", icon = { icon = "󰒡", color = "blue" }, mode = "x" },
 })

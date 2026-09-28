@@ -17,16 +17,29 @@ local CAP_L, CAP_R = "\238\130\182", "\238\130\180" -- U+E0B6 (left) / U+E0B4 (r
 -- get a sane look.
 local function palette()
     local fallback = {
-        blue = "#89b4fa", green = "#a6e3a1", mauve = "#cba6f7", red = "#f38ba8",
-        peach = "#fab387", yellow = "#f9e2af", text = "#cdd6f4", overlay1 = "#7f849c",
-        crust = "#11111b", mantle = "#181825", surface0 = "#313244", surface1 = "#45475a",
+        blue = "#89b4fa",
+        green = "#a6e3a1",
+        mauve = "#cba6f7",
+        red = "#f38ba8",
+        peach = "#fab387",
+        yellow = "#f9e2af",
+        text = "#cdd6f4",
+        overlay1 = "#7f849c",
+        crust = "#11111b",
+        mantle = "#181825",
+        surface0 = "#313244",
+        surface1 = "#45475a",
     }
     local ok, pal = pcall(function()
         return require("catppuccin.palettes").get_palette()
     end)
-    if not ok or type(pal) ~= "table" then return fallback end
+    if not ok or type(pal) ~= "table" then
+        return fallback
+    end
     for k, v in pairs(fallback) do
-        if not pal[k] then pal[k] = v end
+        if not pal[k] then
+            pal[k] = v
+        end
     end
     return pal
 end
@@ -42,11 +55,11 @@ local function pill_theme()
         }
     end
     return {
-        normal   = mode(p.blue),
-        insert   = mode(p.green),
-        visual   = mode(p.mauve),
-        replace  = mode(p.red),
-        command  = mode(p.peach),
+        normal = mode(p.blue),
+        insert = mode(p.green),
+        visual = mode(p.mauve),
+        replace = mode(p.red),
+        command = mode(p.peach),
         terminal = mode(p.green),
         inactive = {
             a = { fg = p.overlay1, bg = p.mantle },
@@ -105,4 +118,8 @@ vim.api.nvim_create_autocmd("OptionSet", { pattern = "background", callback = ap
 -- bg etc. — empty on a fresh launch, with no further ColorScheme event to fix
 -- them. A post-startup re-apply, deferred until the event loop is idle, makes a
 -- cold-started nvim render the filled pills without needing a manual toggle.
-vim.api.nvim_create_autocmd("VimEnter", { callback = function() vim.schedule(apply) end })
+vim.api.nvim_create_autocmd("VimEnter", {
+    callback = function()
+        vim.schedule(apply)
+    end,
+})

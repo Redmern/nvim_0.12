@@ -18,7 +18,7 @@ require("blink.cmp").setup({
     },
     completion = {
         documentation = { auto_show = true, auto_show_delay_ms = 150 },
-        ghost_text = { enabled = false },                  -- Supermaven owns the ghost-text layer
+        ghost_text = { enabled = false }, -- Supermaven owns the ghost-text layer
         menu = { border = "rounded" },
     },
     signature = { enabled = true, window = { border = "rounded" } }, -- live function signature

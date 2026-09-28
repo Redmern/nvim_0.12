@@ -136,9 +136,9 @@ vim.api.nvim_create_autocmd("ColorScheme", { callback = style_line_numbers })
 -- re-applied on ColorScheme like the line numbers above.
 -- ---------------------------------------------------------------------------
 local function style_separators()
-  for _, g in ipairs({ "WinSeparator", "VertSplit" }) do
-    vim.api.nvim_set_hl(0, g, { fg = "#313244", bg = "NONE" })  -- dim, no fill
-  end
+    for _, g in ipairs({ "WinSeparator", "VertSplit" }) do
+        vim.api.nvim_set_hl(0, g, { fg = "#313244", bg = "NONE" }) -- dim, no fill
+    end
 end
 
 style_separators()
