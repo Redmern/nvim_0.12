@@ -16,7 +16,9 @@ try {
         if (Test-Path -LiteralPath $mason) { $stylua = $mason } else { exit 0 }
     }
 
-    $err = & $stylua --config-path "$root\stylua.toml" $full 2>&1
+    # .styluaignore is resolved from the cwd, so run from the repo root.
+    Set-Location -LiteralPath $root
+    $err = & $stylua --respect-ignores --config-path "$root\stylua.toml" $full 2>&1
     if ($LASTEXITCODE -ne 0) {
         $line = ($err | Select-Object -First 1) -replace '\s+', ' '
         [Console]::Error.WriteLine("stylua: $(Split-Path $full -Leaf): $line")
