@@ -22,7 +22,9 @@ vim.keymap.set("n", "<leader>fm", function()
     if not minifiles.close() then
         -- non-file buffers (oil://, terminals, [No Name]) can't anchor the view
         local path = vim.api.nvim_buf_get_name(0)
-        if vim.uv.fs_stat(path) == nil then path = vim.uv.cwd() end
+        if vim.uv.fs_stat(path) == nil then
+            path = vim.uv.cwd()
+        end
         minifiles.open(path, false)
     end
 end, { desc = "Mini.files (current file)" })
@@ -33,7 +35,9 @@ require("mini.pairs").setup({
 
 require("mini.comment").setup({
     options = {
-        custom_commentstring = function() return vim.bo.commentstring end,
+        custom_commentstring = function()
+            return vim.bo.commentstring
+        end,
     },
 })
 

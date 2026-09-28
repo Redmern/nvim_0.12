@@ -8,14 +8,24 @@
 -- `options = { parsers = ..., display = ... }` format instead.
 require("colorizer").setup({
     filetypes = {
-        "css", "scss", "html", "javascript", "typescript", "tsx", "lua",
-        "vim", "cs", "json", "yaml", "markdown",
+        "css",
+        "scss",
+        "html",
+        "javascript",
+        "typescript",
+        "tsx",
+        "lua",
+        "vim",
+        "cs",
+        "json",
+        "yaml",
+        "markdown",
     },
     user_default_options = {
-        RGB      = true,
-        RRGGBB   = true,
+        RGB = true,
+        RRGGBB = true,
         RRGGBBAA = true,
-        names    = false, -- don't match named colours like "red"; too noisy
-        mode     = "background",
+        names = false, -- don't match named colours like "red"; too noisy
+        mode = "background",
     },
 })

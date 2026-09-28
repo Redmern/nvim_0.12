@@ -32,17 +32,23 @@ local WINDOWS_SHELLS = {
 
 local function parent_image_name()
     local ok, ppid = pcall(vim.uv.os_getppid)
-    if not ok or not ppid then return nil end
+    if not ok or not ppid then
+        return nil
+    end
     local ok2, res = pcall(function()
         return vim.system({ "tasklist", "/FI", "PID eq " .. ppid, "/NH", "/FO", "CSV" }, { text = true }):wait(3000)
     end)
-    if not ok2 or not res or res.code ~= 0 or not res.stdout then return nil end
+    if not ok2 or not res or res.code ~= 0 or not res.stdout then
+        return nil
+    end
     -- CSV row looks like: "pwsh.exe","12345","Console","1","98,765 K"
     return res.stdout:match('^%s*"([^"]+)"')
 end
 
 local function terminal_shell()
-    if resolved_shell then return resolved_shell end
+    if resolved_shell then
+        return resolved_shell
+    end
 
     if vim.fn.has("win32") == 0 then
         resolved_shell = (vim.env.SHELL ~= "" and vim.env.SHELL) or vim.o.shell
@@ -79,4 +85,3 @@ require("toggleterm").setup({
 for _, key in ipairs({ "<C-/>", "<C-_>" }) do
     vim.keymap.set({ "n", "t" }, key, "<cmd>ToggleTerm<cr>", { desc = "Toggle terminal" })
 end
-

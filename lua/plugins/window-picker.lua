@@ -7,12 +7,14 @@ require("window-picker").setup({
         include_current_win = false,
         bo = {
             filetype = { "neo-tree", "neo-tree-popup", "notify" },
-            buftype  = { "terminal", "quickfix" },
+            buftype = { "terminal", "quickfix" },
         },
     },
 })
 
 vim.keymap.set("n", "<leader>w", function()
     local win = require("window-picker").pick_window()
-    if win then vim.api.nvim_set_current_win(win) end
+    if win then
+        vim.api.nvim_set_current_win(win)
+    end
 end, { desc = "Pick window" })
