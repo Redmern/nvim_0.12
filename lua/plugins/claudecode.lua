@@ -37,14 +37,27 @@ if vim.fn.has("win32") == 1 then
     vim.api.nvim_create_autocmd("DirChanged", { callback = apply_account_profile })
 end
 
--- Windows: claudecode.nvim picks its port by test-binding a probe socket in
--- find_available_port(), closing it, then binding that same port for real in
--- create_server(). libuv closes handles asynchronously and Windows binds with
--- SO_EXCLUSIVEADDRUSE, so the probe can still own the port when the real
--- listen() lands -> "Failed to listen on port N: EADDRINUSE" at init.
--- Retry: each attempt re-rolls a random port, and vim.wait pumps the event
--- loop so the previous probe handle is actually reaped in between.
-if vim.fn.has("win32") == 1 then
+-- "Failed to listen on port N: EADDRINUSE" at init, mostly when fleet starts
+-- several nvims at once. Two causes in claudecode.nvim:
+--  1. utils.shuffle_array() reseeds with math.randomseed(os.time()), which only
+--     changes once a second, so every nvim started in the same second shuffles
+--     the port range identically and goes for the same port (all platforms).
+--  2. find_available_port() probes with bind() and then closes, so the port can
+--     still be taken before the real listen(). On Windows it's worse: libuv
+--     defers EADDRINUSE from bind() to listen(), so the probe "succeeds" even
+--     on a port that is already in use.
+-- Fix: seed per process with nanosecond time + pid, and retry create_server
+-- (each attempt now really rolls a new port; the failure only shows at listen).
+do
+    local utils = require("claudecode.server.utils")
+    utils.shuffle_array = function(tbl)
+        math.randomseed(vim.uv.hrtime() + vim.uv.os_getpid())
+        for i = #tbl, 2, -1 do
+            local j = math.random(i)
+            tbl[i], tbl[j] = tbl[j], tbl[i]
+        end
+    end
+
     local tcp = require("claudecode.server.tcp")
     local create_server = tcp.create_server
     tcp.create_server = function(config, callbacks, auth_token)
