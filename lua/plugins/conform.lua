@@ -1,49 +1,21 @@
 require("conform").setup({
     formatters_by_ft = {
-        -- C#: no entry on purpose. csharpier reflows whole files at its own print
-        -- width; this repo was never formatted with it, so every save churned
-        -- unrelated lines. Falling through to lsp_fallback lets roslyn_ls format --
-        -- the same Roslyn formatter + .editorconfig teammates' VS/Rider use, and it
-        -- does not rewrap lines.
-        lua = { "stylua" },
+        cs   = { "csharpier" },
+        lua  = { "stylua" },
         json = { "prettier" },
-        -- markdown: prettier reflows tables / list markers / wraps. Kept for
-        -- MANUAL formatting only (<leader>mt table reflow, <leader>lf) —
-        -- format_on_save below skips markdown, the reflow churn is unwanted
-        -- on every save.
-        markdown = { "prettier" },
     },
-    -- Surface format failures instead of silently skipping. Conform's
-    -- format_on_save can be a function returning the args table; we use the
-    -- callback form to get a post-format hook.
-    format_on_save = function(bufnr)
-        if vim.g.disable_autoformat or vim.b[bufnr].disable_autoformat then
-            return
-        end
-        if vim.bo[bufnr].filetype == "markdown" then
-            return
-        end
-        return { timeout_ms = 1000, lsp_fallback = true }, function(err)
-            if err then
-                vim.notify("conform: " .. err, vim.log.levels.WARN, { title = "format on save" })
-            end
-        end
-    end,
+    -- No format_on_save on purpose: `:w` writes the file and nothing else.
+    -- Formatting is explicit, via <leader>lf below.
 })
 
--- Per-buffer / global toggle (handy when a stylua run is fighting you)
-vim.api.nvim_create_user_command("FormatDisable", function(args)
-    if args.bang then
-        vim.b.disable_autoformat = true
-    else
-        vim.g.disable_autoformat = true
-    end
-end, { bang = true, desc = "Disable format-on-save (! = buffer only)" })
-vim.api.nvim_create_user_command("FormatEnable", function()
-    vim.b.disable_autoformat = false
-    vim.g.disable_autoformat = false
-end, { desc = "Re-enable format-on-save" })
+-- Format on demand. Normal mode = whole buffer, visual mode = selected range.
+-- lsp_fallback lets a language server format when no CLI formatter is configured.
+local function format()
+    require("conform").format({ timeout_ms = 1000, lsp_fallback = true }, function(err)
+        if err then
+            vim.notify("conform: " .. err, vim.log.levels.WARN, { title = "format" })
+        end
+    end)
+end
 
-vim.keymap.set("n", "<leader>lf", function()
-    require("conform").format()
-end, { desc = "Format" })
+vim.keymap.set({ "n", "v" }, "<leader>lf", format, { desc = "Format" })
